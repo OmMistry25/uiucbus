@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StatusBar } from 'expo-status-bar';
 import { Text, View, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { AuthService } from './src/services/auth';
+import { DeepLinkService } from './src/services/deepLinks';
 
 const Tab = createBottomTabNavigator();
 

@@ -15,7 +15,8 @@ CREATE TABLE user_settings (
   home_point GEOMETRY(POINT, 4326),
   home_label TEXT DEFAULT 'Home',
   notify_lead_minutes INTEGER DEFAULT 15,
-  quiet_hours TSRANGE DEFAULT '[22:00:00, 08:00:00]',
+  quiet_hours_start TIME DEFAULT '22:00:00',
+  quiet_hours_end TIME DEFAULT '08:00:00',
   timezone TEXT DEFAULT 'America/Chicago'
 );
 

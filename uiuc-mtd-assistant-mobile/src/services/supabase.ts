@@ -16,7 +16,8 @@ export interface UserSettings {
   home_point: { type: 'Point'; coordinates: [number, number] };
   home_label: string;
   notify_lead_minutes: number;
-  quiet_hours: string; // tsrange format
+  quiet_hours_start: string; // TIME format
+  quiet_hours_end: string; // TIME format
   timezone: string;
 }
 
