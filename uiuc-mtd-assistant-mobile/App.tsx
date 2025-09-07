@@ -87,6 +87,11 @@ const SettingsScreen = () => (
 );
 
 export default function App() {
+  useEffect(() => {
+    // Initialize deep link handling
+    DeepLinkService.init();
+  }, []);
+
   return (
     <NavigationContainer>
       <Tab.Navigator>

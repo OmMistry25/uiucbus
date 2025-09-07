@@ -1,4 +1,4 @@
-# UIUC BUS APP
+# UIUC MTD Assistant
 
 A mobile app that helps University of Illinois students navigate campus bus transportation more efficiently and never miss their classes.
 
