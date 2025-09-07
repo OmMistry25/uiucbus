@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Text, View, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { AuthService } from './src/services/auth';
 import { DeepLinkService } from './src/services/deepLinks';
+import { NotificationService } from './src/services/notifications';
 
 const Tab = createBottomTabNavigator();
 
@@ -12,6 +13,8 @@ const Tab = createBottomTabNavigator();
 const DashboardScreen = () => {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState(null);
+  const [isSignedIn, setIsSignedIn] = useState(false);
 
   const handleSignIn = async () => {
     if (!email) {
@@ -30,40 +33,128 @@ const DashboardScreen = () => {
     }
   };
 
+  const handleTestNotification = async () => {
+    try {
+      await NotificationService.sendTestNotification();
+      Alert.alert('Success', 'Test notification sent! Check your device in 2 seconds.');
+    } catch (error: any) {
+      Alert.alert('Error', error?.message || 'Failed to send test notification');
+    }
+  };
+
+  const checkAuthState = async () => {
+    try {
+      const currentUser = await AuthService.getCurrentUser();
+      if (currentUser) {
+        setUser(currentUser);
+        setIsSignedIn(true);
+        setEmail(currentUser.email || '');
+      } else {
+        setIsSignedIn(false);
+        setUser(null);
+      }
+    } catch (error) {
+      console.log('No user signed in');
+      setIsSignedIn(false);
+      setUser(null);
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await AuthService.signOut();
+      setIsSignedIn(false);
+      setUser(null);
+      setEmail('');
+      Alert.alert('Success', 'Signed out successfully!');
+    } catch (error: any) {
+      Alert.alert('Error', error?.message || 'Failed to sign out');
+    }
+  };
+
+  useEffect(() => {
+    checkAuthState();
+  }, []);
+
   return (
     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
       <Text style={{ fontSize: 24, marginBottom: 30 }}>UIUC MTD Assistant</Text>
-      <TextInput
-        placeholder="Enter your email"
-        value={email}
-        onChangeText={setEmail}
-        style={{
-          borderWidth: 1,
-          borderColor: '#ccc',
-          borderRadius: 8,
-          padding: 15,
-          width: '100%',
-          marginBottom: 20,
-          fontSize: 16
-        }}
-        keyboardType="email-address"
-        autoCapitalize="none"
-      />
-      <TouchableOpacity
-        onPress={handleSignIn}
-        disabled={loading}
-        style={{
-          backgroundColor: '#007AFF',
-          padding: 15,
-          borderRadius: 8,
-          width: '100%',
-          alignItems: 'center'
-        }}
-      >
-        <Text style={{ color: 'white', fontSize: 16, fontWeight: '600' }}>
-          {loading ? 'Sending...' : 'Sign In with Email'}
-        </Text>
-      </TouchableOpacity>
+      
+      {isSignedIn ? (
+        // Signed in state
+        <View style={{ width: '100%', alignItems: 'center' }}>
+          <Text style={{ fontSize: 18, marginBottom: 20, color: '#34C759' }}>
+            ✅ Signed in as: {user?.email}
+          </Text>
+          
+          <TouchableOpacity
+            onPress={handleTestNotification}
+            style={{
+              backgroundColor: '#34C759',
+              padding: 15,
+              borderRadius: 8,
+              width: '100%',
+              alignItems: 'center',
+              marginBottom: 15
+            }}
+          >
+            <Text style={{ color: 'white', fontSize: 16, fontWeight: '600' }}>
+              Test Push Notification
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            onPress={handleSignOut}
+            style={{
+              backgroundColor: '#FF3B30',
+              padding: 15,
+              borderRadius: 8,
+              width: '100%',
+              alignItems: 'center'
+            }}
+          >
+            <Text style={{ color: 'white', fontSize: 16, fontWeight: '600' }}>
+              Sign Out
+            </Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        // Not signed in state
+        <View style={{ width: '100%' }}>
+          <TextInput
+            placeholder="Enter your email"
+            value={email}
+            onChangeText={setEmail}
+            style={{
+              borderWidth: 1,
+              borderColor: '#ccc',
+              borderRadius: 8,
+              padding: 15,
+              width: '100%',
+              marginBottom: 20,
+              fontSize: 16
+            }}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+          <TouchableOpacity
+            onPress={handleSignIn}
+            disabled={loading}
+            style={{
+              backgroundColor: '#007AFF',
+              padding: 15,
+              borderRadius: 8,
+              width: '100%',
+              alignItems: 'center',
+              marginBottom: 15
+            }}
+          >
+            <Text style={{ color: 'white', fontSize: 16, fontWeight: '600' }}>
+              {loading ? 'Sending...' : 'Sign In with Email'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 };
@@ -90,6 +181,9 @@ export default function App() {
   useEffect(() => {
     // Initialize deep link handling
     DeepLinkService.init();
+    
+    // Initialize push notifications
+    NotificationService.register();
   }, []);
 
   return (

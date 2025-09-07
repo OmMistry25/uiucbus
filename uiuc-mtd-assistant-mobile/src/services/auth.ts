@@ -7,7 +7,7 @@ export class AuthService {
     const { data, error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: 'uiucmtd://auth/callback',
+        emailRedirectTo: 'http://localhost:8081/--/auth/callback',
       },
     });
     

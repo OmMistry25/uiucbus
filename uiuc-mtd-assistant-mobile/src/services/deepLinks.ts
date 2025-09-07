@@ -1,5 +1,6 @@
 import { Linking } from 'react-native';
 import { supabase } from './supabase';
+import * as Notifications from 'expo-notifications';
 
 export class DeepLinkService {
   // Initialize deep link handling
@@ -19,6 +20,11 @@ export class DeepLinkService {
     // Listen for incoming deep links
     Linking.addEventListener('url', ({ url }) => {
       handleDeepLink(url);
+    });
+
+    // Handle notification taps
+    Notifications.addNotificationResponseReceivedListener((response) => {
+      this.handleNotificationResponse(response);
     });
   }
 
@@ -72,6 +78,24 @@ export class DeepLinkService {
     } catch (error) {
       console.error('Error handling Supabase redirect:', error);
     }
+  }
+
+  // Handle notification response (when user taps a notification)
+  private static handleNotificationResponse(response: Notifications.NotificationResponse) {
+    console.log('Notification tapped:', response);
+    
+    const data = response.notification.request.content.data;
+    if (data && data.screen) {
+      // Navigate to the specified screen
+      this.navigateToScreen(data.screen as string);
+    }
+  }
+
+  // Navigate to a specific screen (placeholder for now)
+  private static navigateToScreen(screen: string) {
+    console.log('Navigating to screen:', screen);
+    // TODO: Implement navigation logic when we add navigation state management
+    // For now, we'll just log the intended navigation
   }
 
   // Open a deep link
