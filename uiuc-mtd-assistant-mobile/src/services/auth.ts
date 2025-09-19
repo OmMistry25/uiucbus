@@ -4,15 +4,26 @@ import { Profile } from './supabase';
 export class AuthService {
   // Send magic link for email sign-in
   static async signInWithEmail(email: string) {
-    const { data, error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: 'http://localhost:8081/--/auth/callback',
-      },
-    });
-    
-    if (error) throw error;
-    return data;
+    try {
+      console.log('Attempting to send magic link to:', email);
+      const { data, error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: 'exp://10.6.112.238:8081/--/auth/callback',
+        },
+      });
+      
+      if (error) {
+        console.error('Supabase auth error:', error);
+        throw error;
+      }
+      
+      console.log('Magic link sent successfully');
+      return data;
+    } catch (error) {
+      console.error('Sign in error:', error);
+      throw error;
+    }
   }
 
   // Sign out

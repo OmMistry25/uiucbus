@@ -1,53 +1,107 @@
-# Supabase Setup Instructions
+# Supabase Storage Setup Guide
 
-## 1. Database Schema Setup
+## Manual Storage Bucket Creation
 
-The database schema is defined in `supabase/migrations/001_initial_schema.sql`. You need to run this in your Supabase project.
+Since the app doesn't have permission to create storage buckets automatically, you need to create it manually in your Supabase dashboard.
 
-### Option A: Using Supabase Dashboard (Recommended)
+### Steps:
 
-1. Go to your Supabase project: https://risfpuuodmoyrwwvgmip.supabase.co
-2. Navigate to **SQL Editor** in the left sidebar
-3. Copy the contents of `supabase/migrations/001_initial_schema.sql`
-4. Paste it into the SQL editor and click **Run**
+1. **Go to your Supabase Dashboard**
+   - Visit: https://app.supabase.com
+   - Select your project: `risfpuuodmoyrwwvgmip`
 
-### Option B: Using Supabase CLI
+2. **Navigate to Storage**
+   - Click on "Storage" in the left sidebar
+   - Click "New bucket"
 
-If you have the Supabase CLI installed:
-```bash
-supabase db push
+3. **Create the Bucket**
+   - **Name**: `calendar_ics`
+   - **Public**: No (keep it private)
+   - **File size limit**: 50MB (or your preference)
+   - **Allowed MIME types**: 
+     - `text/calendar`
+     - `application/calendar`
+
+4. **Set Up RLS Policies**
+   - Go to "Storage" → "Policies"
+   - Add the following policies for the `calendar_ics` bucket:
+
+   **Policy 1: Allow authenticated users to upload**
+   ```sql
+   CREATE POLICY "Users can upload calendar files" ON storage.objects
+   FOR INSERT WITH CHECK (
+     bucket_id = 'calendar_ics' AND 
+     auth.role() = 'authenticated'
+   );
+   ```
+
+   **Policy 2: Allow users to view their own files**
+   ```sql
+   CREATE POLICY "Users can view their own calendar files" ON storage.objects
+   FOR SELECT USING (
+     bucket_id = 'calendar_ics' AND 
+     auth.role() = 'authenticated'
+   );
+   ```
+
+   **Policy 3: Allow users to delete their own files**
+   ```sql
+   CREATE POLICY "Users can delete their own calendar files" ON storage.objects
+   FOR DELETE USING (
+     bucket_id = 'calendar_ics' AND 
+     auth.role() = 'authenticated'
+   );
+   ```
+
+### Alternative: Use SQL Editor
+
+You can also create the bucket using the SQL Editor:
+
+```sql
+-- Create the storage bucket
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'calendar_ics',
+  'calendar_ics', 
+  false,
+  52428800, -- 50MB
+  ARRAY['text/calendar', 'application/calendar']
+);
+
+-- Create RLS policies
+CREATE POLICY "Users can upload calendar files" ON storage.objects
+FOR INSERT WITH CHECK (
+  bucket_id = 'calendar_ics' AND 
+  auth.role() = 'authenticated'
+);
+
+CREATE POLICY "Users can view their own calendar files" ON storage.objects
+FOR SELECT USING (
+  bucket_id = 'calendar_ics' AND 
+  auth.role() = 'authenticated'
+);
+
+CREATE POLICY "Users can delete their own calendar files" ON storage.objects
+FOR DELETE USING (
+  bucket_id = 'calendar_ics' AND 
+  auth.role() = 'authenticated'
+);
 ```
 
-## 2. Enable Email Authentication
+## Testing
 
-1. In your Supabase dashboard, go to **Authentication** → **Providers**
-2. Make sure **Email** is enabled
-3. Configure **Site URL** to: `uiucmtd://`
-4. Add **Redirect URLs**: `uiucmtd://auth/callback`
+After creating the bucket:
 
-## 3. Test the Setup
+1. **Restart the app** to clear any cached errors
+2. **Try uploading an ICS file** again
+3. **Check the console logs** for detailed progress
+4. **The upload should now work** and save events to the database
 
-1. Run the app: `npm start`
-2. Scan the QR code with Expo Go
-3. Go to the **Dashboard** tab
-4. Enter your email address
-5. Click "Sign In with Email"
-6. Check your email for the magic link
+## Troubleshooting
 
-## 4. Verify Database Tables
+If you still get errors:
 
-After running the migration, you should see these tables in your Supabase dashboard:
-- `profiles`
-- `user_settings`
-- `calendars`
-- `events`
-- `routes_plans`
-- `push_tokens`
-- `metrics`
-
-## 5. Next Steps
-
-Once authentication is working, we'll move on to:
-- Push notification setup
-- Calendar integration
-- CUMTD API proxy implementation
+1. **Check bucket permissions** in Supabase dashboard
+2. **Verify RLS policies** are correctly set
+3. **Check user authentication** - make sure you're signed in
+4. **Look at console logs** for specific error messages

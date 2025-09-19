@@ -7,6 +7,7 @@ import { AuthService } from './src/services/auth';
 import { DeepLinkService } from './src/services/deepLinks';
 import { NotificationService } from './src/services/notifications';
 import { CalendarService } from './src/services/calendar';
+import { FileUploadService } from './src/services/fileUpload';
 
 const Tab = createBottomTabNavigator();
 
@@ -19,6 +20,8 @@ const DashboardScreen = () => {
   const [calendarConnected, setCalendarConnected] = useState(false);
   const [events, setEvents] = useState<any[]>([]);
   const [loadingCalendar, setLoadingCalendar] = useState(false);
+  const [uploadingICS, setUploadingICS] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<string>('');
 
   const handleSignIn = async () => {
     if (!email) {
@@ -112,6 +115,83 @@ const DashboardScreen = () => {
     }
   };
 
+  const handleUploadICS = async () => {
+    setUploadingICS(true);
+    setUploadStatus('Starting upload...');
+    try {
+      console.log('🚀 ===== ICS UPLOAD PROCESS STARTED =====');
+      console.log('📅 Current time:', new Date().toISOString());
+      
+      // Upload the ICS file
+      setUploadStatus('Step 1: Uploading file...');
+      console.log('📁 Step 1: Starting file upload...');
+      const uploadResult = await FileUploadService.uploadICSFile();
+      
+      if (!uploadResult.success) {
+        console.error('❌ Upload failed:', uploadResult.error);
+        setUploadStatus(`❌ Upload failed: ${uploadResult.error}`);
+        Alert.alert('Upload Failed', uploadResult.error || 'Failed to upload file');
+        return;
+      }
+      console.log('✅ Step 1 completed: File uploaded successfully');
+      console.log('📂 Uploaded file path:', uploadResult.filePath);
+      setUploadStatus('✅ File uploaded successfully');
+
+      // Parse the ICS file
+      setUploadStatus('Step 2: Parsing ICS file...');
+      console.log('🔍 Step 2: Starting ICS parsing...');
+      const parseResult = await FileUploadService.parseICSEvents(uploadResult.filePath!);
+      
+      if (!parseResult.success) {
+        console.error('❌ Parse failed:', parseResult.error);
+        setUploadStatus(`❌ Parse failed: ${parseResult.error}`);
+        Alert.alert('Parse Failed', parseResult.error || 'Failed to parse ICS file');
+        return;
+      }
+      console.log('✅ Step 2 completed: ICS parsed successfully');
+      console.log('📊 Parsed events count:', parseResult.events?.length);
+      console.log('📋 Parsed events:', parseResult.events);
+      setUploadStatus(`✅ Parsed ${parseResult.events?.length} events`);
+
+      // Save events to database
+      setUploadStatus('Step 3: Saving to database...');
+      console.log('💾 Step 3: Starting database save...');
+      const saveResult = await FileUploadService.saveEventsToDatabase(parseResult.events!);
+      
+      if (!saveResult.success) {
+        console.error('❌ Save failed:', saveResult.error);
+        setUploadStatus(`❌ Save failed: ${saveResult.error}`);
+        Alert.alert('Save Failed', saveResult.error || 'Failed to save events');
+        return;
+      }
+      console.log('✅ Step 3 completed: Events saved to database successfully');
+
+      console.log('🎉 ===== ICS UPLOAD PROCESS COMPLETED SUCCESSFULLY =====');
+      console.log('📈 Total events imported:', parseResult.events!.length);
+      setUploadStatus(`🎉 Success! Imported ${parseResult.events!.length} events`);
+      Alert.alert('Success', `Successfully imported ${parseResult.events!.length} events from ICS file!`);
+      
+      // Refresh events if calendar is connected
+      if (calendarConnected) {
+        console.log('🔄 Refreshing calendar events...');
+        setUploadStatus('Refreshing calendar...');
+        await handleLoadEvents();
+        console.log('✅ Calendar events refreshed');
+        setUploadStatus(`🎉 Success! Imported ${parseResult.events!.length} events and refreshed calendar`);
+      }
+      
+    } catch (error) {
+      console.error('💥 ===== ICS UPLOAD PROCESS FAILED =====');
+      console.error('🚨 Unexpected error:', error);
+      console.error('📊 Error details:', JSON.stringify(error, null, 2));
+      setUploadStatus(`💥 Error: ${error}`);
+      Alert.alert('Error', `An unexpected error occurred during upload: ${error}`);
+    } finally {
+      setUploadingICS(false);
+      console.log('🏁 ICS upload process finished (success or failure)');
+    }
+  };
+
   useEffect(() => {
     checkAuthState();
   }, []);
@@ -173,6 +253,43 @@ const DashboardScreen = () => {
                 {loadingCalendar ? 'Loading...' : 'Load Next 10 Events'}
               </Text>
             </TouchableOpacity>
+          )}
+          
+          <TouchableOpacity
+            onPress={handleUploadICS}
+            disabled={uploadingICS}
+            style={{
+              backgroundColor: uploadingICS ? '#FF6B35' : '#FF9500',
+              padding: 15,
+              borderRadius: 8,
+              width: '100%',
+              alignItems: 'center',
+              marginBottom: 15
+            }}
+          >
+            <Text style={{ color: 'white', fontSize: 16, fontWeight: '600' }}>
+              {uploadingICS ? 'Uploading...' : '📁 Upload ICS Calendar File'}
+            </Text>
+          </TouchableOpacity>
+          
+          {uploadStatus && (
+            <View style={{
+              backgroundColor: '#F0F0F0',
+              padding: 12,
+              borderRadius: 8,
+              marginBottom: 15,
+              borderLeftWidth: 4,
+              borderLeftColor: uploadStatus.includes('❌') || uploadStatus.includes('💥') ? '#FF3B30' : 
+                              uploadStatus.includes('🎉') ? '#34C759' : '#FF9500'
+            }}>
+              <Text style={{ 
+                fontSize: 14, 
+                color: '#333',
+                fontWeight: '500'
+              }}>
+                📊 Upload Status: {uploadStatus}
+              </Text>
+            </View>
           )}
           
           <TouchableOpacity
