@@ -8,6 +8,8 @@ import { DeepLinkService } from './src/services/deepLinks';
 import { NotificationService } from './src/services/notifications';
 import { CalendarService } from './src/services/calendar';
 import { FileUploadService } from './src/services/fileUpload';
+import { TransitService } from './src/services/transit';
+import { supabase } from './src/services/supabase';
 
 const Tab = createBottomTabNavigator();
 
@@ -47,6 +49,37 @@ const DashboardScreen = () => {
       Alert.alert('Success', 'Test notification sent! Check your device in 2 seconds.');
     } catch (error: any) {
       Alert.alert('Error', error?.message || 'Failed to send test notification');
+    }
+  };
+
+  const handleTestTransit = async () => {
+    try {
+      console.log('🚌 ===== TRANSIT TEST STARTED =====');
+      console.log('🚌 Testing transit service...');
+      console.log('🚌 Current user:', user?.id);
+      console.log('🚌 Supabase client:', supabase);
+      
+      // Test departures for a common UIUC stop
+      console.log('🚌 Calling TransitService.getDepartures("WLNTUNI")...');
+      const departuresResult = await TransitService.getDepartures('WLNTUNI');
+      
+      console.log('🚌 Departures result:', departuresResult);
+      
+      if (departuresResult.success) {
+        console.log('✅ Departures test successful:', departuresResult.departures?.length || 0, 'departures');
+        console.log('✅ Departures data:', departuresResult.departures);
+        Alert.alert('Transit Test', `Found ${departuresResult.departures?.length || 0} departures for ILLINI stop`);
+      } else {
+        console.error('❌ Departures test failed:', departuresResult.error);
+        Alert.alert('Transit Test Failed', departuresResult.error || 'Unknown error');
+      }
+      
+      console.log('🚌 ===== TRANSIT TEST COMPLETED =====');
+    } catch (error) {
+      console.error('❌ ===== TRANSIT TEST ERROR =====');
+      console.error('❌ Transit test error:', error);
+      console.error('❌ Error details:', JSON.stringify(error, null, 2));
+      Alert.alert('Error', `Transit test failed: ${error}`);
     }
   };
 
@@ -305,6 +338,22 @@ const DashboardScreen = () => {
           >
             <Text style={{ color: 'white', fontSize: 16, fontWeight: '600' }}>
               Test Push Notification
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={handleTestTransit}
+            style={{
+              backgroundColor: '#FF9500',
+              padding: 15,
+              borderRadius: 8,
+              width: '100%',
+              alignItems: 'center',
+              marginBottom: 15
+            }}
+          >
+            <Text style={{ color: 'white', fontSize: 16, fontWeight: '600' }}>
+              Test Transit API
             </Text>
           </TouchableOpacity>
           
