@@ -46,17 +46,19 @@ export class NotificationService {
         return null;
       }
 
-      // Get the push token
-      const token = await Notifications.getExpoPushTokenAsync({
-        projectId: 'your-expo-project-id', // This will be set when we configure EAS
-      });
+      // Get the push token (only if we have a valid project ID)
+      try {
+        const token = await Notifications.getExpoPushTokenAsync();
+        console.log('Push token:', token.data);
 
-      console.log('Push token:', token.data);
+        // Save token to database
+        await this.saveTokenToDatabase(token.data);
 
-      // Save token to database
-      await this.saveTokenToDatabase(token.data);
-
-      return token.data;
+        return token.data;
+      } catch (error) {
+        console.log('Push notifications not available in development mode:', error);
+        return null;
+      }
     } catch (error) {
       console.error('Error registering for push notifications:', error);
       return null;

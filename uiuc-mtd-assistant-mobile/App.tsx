@@ -6,6 +6,7 @@ import { Text, View, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { AuthService } from './src/services/auth';
 import { DeepLinkService } from './src/services/deepLinks';
 import { NotificationService } from './src/services/notifications';
+import { CalendarService } from './src/services/calendar';
 
 const Tab = createBottomTabNavigator();
 
@@ -13,8 +14,11 @@ const Tab = createBottomTabNavigator();
 const DashboardScreen = () => {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<any>(null);
   const [isSignedIn, setIsSignedIn] = useState(false);
+  const [calendarConnected, setCalendarConnected] = useState(false);
+  const [events, setEvents] = useState<any[]>([]);
+  const [loadingCalendar, setLoadingCalendar] = useState(false);
 
   const handleSignIn = async () => {
     if (!email) {
@@ -24,6 +28,7 @@ const DashboardScreen = () => {
 
     setLoading(true);
     try {
+      await AuthService.signInWithEmail(email);
       await AuthService.signInWithEmail(email);
       Alert.alert('Success', 'Check your email for the magic link!');
     } catch (error: any) {
@@ -72,9 +77,50 @@ const DashboardScreen = () => {
     }
   };
 
+  const handleConnectCalendar = async () => {
+    setLoadingCalendar(true);
+    try {
+      await CalendarService.connectGoogleCalendar();
+      Alert.alert('Success', 'Google Calendar connected! Check your email for the OAuth link.');
+    } catch (error: any) {
+      Alert.alert('Error', error?.message || 'Failed to connect calendar');
+    } finally {
+      setLoadingCalendar(false);
+    }
+  };
+
+  const handleLoadEvents = async () => {
+    setLoadingCalendar(true);
+    try {
+      const nextEvents = await CalendarService.getNextEvents(10);
+      setEvents(nextEvents);
+      Alert.alert('Success', `Loaded ${nextEvents.length} upcoming events!`);
+    } catch (error: any) {
+      Alert.alert('Error', error?.message || 'Failed to load events');
+    } finally {
+      setLoadingCalendar(false);
+    }
+  };
+
+  const checkCalendarConnection = async () => {
+    try {
+      const calendar = await CalendarService.getCalendarConnection();
+      setCalendarConnected(!!calendar);
+    } catch (error) {
+      console.log('No calendar connected');
+      setCalendarConnected(false);
+    }
+  };
+
   useEffect(() => {
     checkAuthState();
   }, []);
+
+  useEffect(() => {
+    if (isSignedIn) {
+      checkCalendarConnection();
+    }
+  }, [isSignedIn]);
 
   return (
     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
@@ -86,6 +132,48 @@ const DashboardScreen = () => {
           <Text style={{ fontSize: 18, marginBottom: 20, color: '#34C759' }}>
             ✅ Signed in as: {user?.email}
           </Text>
+          
+          <Text style={{ fontSize: 16, marginBottom: 15, color: calendarConnected ? '#34C759' : '#FF9500' }}>
+            {calendarConnected ? '📅 Calendar Connected' : '📅 Calendar Not Connected'}
+          </Text>
+          
+          {!calendarConnected && (
+            <TouchableOpacity
+              onPress={handleConnectCalendar}
+              disabled={loadingCalendar}
+              style={{
+                backgroundColor: '#007AFF',
+                padding: 15,
+                borderRadius: 8,
+                width: '100%',
+                alignItems: 'center',
+                marginBottom: 15
+              }}
+            >
+              <Text style={{ color: 'white', fontSize: 16, fontWeight: '600' }}>
+                {loadingCalendar ? 'Connecting...' : 'Connect Google Calendar'}
+              </Text>
+            </TouchableOpacity>
+          )}
+          
+          {calendarConnected && (
+            <TouchableOpacity
+              onPress={handleLoadEvents}
+              disabled={loadingCalendar}
+              style={{
+                backgroundColor: '#34C759',
+                padding: 15,
+                borderRadius: 8,
+                width: '100%',
+                alignItems: 'center',
+                marginBottom: 15
+              }}
+            >
+              <Text style={{ color: 'white', fontSize: 16, fontWeight: '600' }}>
+                {loadingCalendar ? 'Loading...' : 'Load Next 10 Events'}
+              </Text>
+            </TouchableOpacity>
+          )}
           
           <TouchableOpacity
             onPress={handleTestNotification}

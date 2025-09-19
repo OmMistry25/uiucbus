@@ -3,6 +3,8 @@
     "name": "uiuc-mtd-assistant-mobile",
     "slug": "uiuc-mtd-assistant-mobile",
     "version": "1.0.0",
+    "sdkVersion": "54.0.0",
+    "owner": "anonymous",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -33,7 +35,8 @@
           "icon": "./assets/icon.png",
           "color": "#ffffff"
         }
-      ]
+      ],
+      "expo-secure-store"
     ]
   }
 }
