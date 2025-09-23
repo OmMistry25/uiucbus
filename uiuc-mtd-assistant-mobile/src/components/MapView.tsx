@@ -6,6 +6,9 @@ import { APP_CONFIG } from '../constants/env';
 // import { LiveVehicleMarkers } from './LiveVehicleMarkers';
 import { SimpleVehicleMarkers } from './SimpleVehicleMarkers';
 import { RouteFollower } from './RouteFollower';
+import { HomePicker } from './HomePicker';
+import { HomeMarker } from './HomeMarker';
+import { UserSettingsService, HomePoint } from '../services/userSettings';
 
 export const MapScreen = () => {
   const [locationPermission, setLocationPermission] = React.useState<Location.LocationPermissionResponse | null>(null);
@@ -13,6 +16,11 @@ export const MapScreen = () => {
   const [showBusMarkerDemo, setShowBusMarkerDemo] = React.useState(false);
   const [showRouteFollower, setShowRouteFollower] = React.useState(false);
   const [showLiveVehicles, setShowLiveVehicles] = React.useState(true);
+  
+  // Home picker state
+  const [showHomePicker, setShowHomePicker] = React.useState(false);
+  const [selectedLocation, setSelectedLocation] = React.useState<{latitude: number, longitude: number} | null>(null);
+  const [homePoint, setHomePoint] = React.useState<HomePoint | null>(null);
 
   // UIUC campus coordinates (Main Quad) with appropriate zoom level
   const campusCenter = {
@@ -21,6 +29,21 @@ export const MapScreen = () => {
     latitudeDelta: 0.02, // Slightly wider view to show more of campus
     longitudeDelta: 0.02,
   };
+
+  // Load home point on component mount
+  React.useEffect(() => {
+    const loadHomePoint = async () => {
+      try {
+        const home = await UserSettingsService.getHomePoint();
+        setHomePoint(home);
+        console.log('🏠 Home point loaded:', home);
+      } catch (error) {
+        console.error('Error loading home point:', error);
+      }
+    };
+    
+    loadHomePoint();
+  }, []);
 
   // Request location permissions and get user location
   React.useEffect(() => {
@@ -126,11 +149,37 @@ export const MapScreen = () => {
                   userLocationAnnotationTitle="Your Location"
                   userLocationPriority="high"
                   userLocationUpdateInterval={5000}
+                  onPress={(event) => {
+                    const { latitude, longitude } = event.nativeEvent.coordinate;
+                    setSelectedLocation({ latitude, longitude });
+                    setShowHomePicker(true);
+                    console.log('🗺️ Map pressed at:', latitude, longitude);
+                  }}
                 >
                   {/* Simple Vehicle Markers (without SVG) */}
                   <SimpleVehicleMarkers 
                     visible={showLiveVehicles}
                   />
+                  
+                  {/* Home Marker */}
+                  {homePoint && (
+                    <HomeMarker 
+                      homePoint={homePoint}
+                      onPress={() => {
+                        Alert.alert(
+                          'Home Location',
+                          `Your home is set at:\n${homePoint.latitude.toFixed(6)}, ${homePoint.longitude.toFixed(6)}`,
+                          [
+                            { text: 'OK' },
+                            { 
+                              text: 'Change', 
+                              onPress: () => setShowHomePicker(true) 
+                            }
+                          ]
+                        );
+                      }}
+                    />
+                  )}
                 </MapView>
                 
                 {/* BusMarker Demo Button - Temporarily disabled */}
@@ -156,6 +205,14 @@ export const MapScreen = () => {
                     <Text style={styles.demoButtonText}>🚌 Live Buses</Text>
                   </TouchableOpacity>
                 )}
+                
+                {/* Set Home Button */}
+                <TouchableOpacity
+                  style={[styles.demoButton, { top: 160 }]}
+                  onPress={() => setShowHomePicker(true)}
+                >
+                  <Text style={styles.demoButtonText}>🏠 Set Home</Text>
+                </TouchableOpacity>
               </View>
             );
           };
@@ -212,6 +269,21 @@ export const MapScreen = () => {
               </View>
             </Modal>
             */}
+      
+      {/* Home Picker Modal */}
+      <HomePicker
+        visible={showHomePicker}
+        onClose={() => {
+          setShowHomePicker(false);
+          setSelectedLocation(null);
+        }}
+        onHomeSet={(homePoint) => {
+          setHomePoint(homePoint);
+          setShowHomePicker(false);
+          setSelectedLocation(null);
+        }}
+        selectedLocation={selectedLocation}
+      />
     </>
   );
 };
