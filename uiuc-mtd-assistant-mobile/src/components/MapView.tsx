@@ -1,11 +1,13 @@
 import React from 'react';
-import { View, Text, Platform, StyleSheet, Alert } from 'react-native';
+import { View, Text, Platform, StyleSheet, Alert, TouchableOpacity, Modal } from 'react-native';
 import * as Location from 'expo-location';
 import { APP_CONFIG } from '../constants/env';
+import { BusMarkerDemo } from './BusMarkerDemo';
 
 export const MapScreen = () => {
   const [locationPermission, setLocationPermission] = React.useState<Location.LocationPermissionResponse | null>(null);
   const [userLocation, setUserLocation] = React.useState<Location.LocationObject | null>(null);
+  const [showBusMarkerDemo, setShowBusMarkerDemo] = React.useState(false);
 
   // UIUC campus coordinates (Main Quad) with appropriate zoom level
   const campusCenter = {
@@ -121,6 +123,14 @@ export const MapScreen = () => {
                   userLocationUpdateInterval={5000}
                 >
                 </MapView>
+                
+                {/* BusMarker Demo Button */}
+                <TouchableOpacity
+                  style={styles.demoButton}
+                  onPress={() => setShowBusMarkerDemo(true)}
+                >
+                  <Text style={styles.demoButtonText}>🚌 Test BusMarker</Text>
+                </TouchableOpacity>
               </View>
             );
           };
@@ -151,7 +161,32 @@ export const MapScreen = () => {
     );
   }
 
-  return <MapComponent />;
+  return (
+    <>
+      <MapComponent />
+      
+      {/* BusMarker Demo Modal */}
+      <Modal
+        visible={showBusMarkerDemo}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowBusMarkerDemo(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>BusMarker Demo</Text>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setShowBusMarkerDemo(false)}
+            >
+              <Text style={styles.closeButtonText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+          <BusMarkerDemo />
+        </View>
+      </Modal>
+    </>
+  );
 };
 
 const styles = StyleSheet.create({
@@ -210,5 +245,55 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#F44336',
     marginTop: 10,
+  },
+  demoButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    backgroundColor: '#FF6B35',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  demoButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  closeButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    fontSize: 18,
+    color: '#666',
+    fontWeight: 'bold',
   },
 });
