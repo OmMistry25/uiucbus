@@ -9,6 +9,7 @@ import { NotificationService } from './src/services/notifications';
 import { CalendarService } from './src/services/calendar';
 import { FileUploadService } from './src/services/fileUpload';
 import { TransitService } from './src/services/transit';
+import { TransitApiService } from './src/services/transitApi';
 import { supabase } from './src/services/supabase';
 import { APP_CONFIG } from './src/constants/env';
 import { MapScreen } from './src/components/MapView';
@@ -120,20 +121,22 @@ const DashboardScreen = () => {
   const handleTestTransit = async () => {
     try {
       console.log('🚌 ===== TRANSIT TEST STARTED =====');
-      console.log('🚌 Testing transit service...');
+      console.log('🚌 Testing transit API proxy...');
       console.log('🚌 Current user:', user?.id);
       console.log('🚌 Supabase client:', supabase);
       
-      // Test departures for a common UIUC stop
-      console.log('🚌 Calling TransitService.getDepartures("WLNTUNI")...');
-      const departuresResult = await TransitService.getDepartures('WLNTUNI');
+      // Test departures for a common UIUC stop using the new proxy
+      console.log('🚌 Calling TransitApiService.getDepartures("WLNTUNI")...');
+      const departuresResult = await TransitApiService.getDepartures('WLNTUNI');
       
       console.log('🚌 Departures result:', departuresResult);
       
       if (departuresResult.success) {
-        console.log('✅ Departures test successful:', departuresResult.departures?.length || 0, 'departures');
-        console.log('✅ Departures data:', departuresResult.departures);
-        Alert.alert('Transit Test', `Found ${departuresResult.departures?.length || 0} departures for ILLINI stop`);
+        console.log('✅ Departures test successful:', departuresResult.data?.departures?.length || 0, 'departures');
+        console.log('✅ Departures data:', departuresResult.data?.departures);
+        console.log('💾 Cached:', departuresResult.cached || false);
+        console.log('⏱️ Cache age:', departuresResult.cacheAge || 0, 'seconds');
+        Alert.alert('Transit Test', `Found ${departuresResult.data?.departures?.length || 0} departures for WLNTUNI stop${departuresResult.cached ? ' (cached)' : ''}`);
       } else {
         console.error('❌ Departures test failed:', departuresResult.error);
         Alert.alert('Transit Test Failed', departuresResult.error || 'Unknown error');
