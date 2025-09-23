@@ -2,12 +2,17 @@ import React from 'react';
 import { View, Text, Platform, StyleSheet, Alert, TouchableOpacity, Modal } from 'react-native';
 import * as Location from 'expo-location';
 import { APP_CONFIG } from '../constants/env';
-import { BusMarkerDemo } from './BusMarkerDemo';
+// import { BusMarkerDemo } from './BusMarkerDemo';
+// import { LiveVehicleMarkers } from './LiveVehicleMarkers';
+import { SimpleVehicleMarkers } from './SimpleVehicleMarkers';
+import { RouteFollower } from './RouteFollower';
 
 export const MapScreen = () => {
   const [locationPermission, setLocationPermission] = React.useState<Location.LocationPermissionResponse | null>(null);
   const [userLocation, setUserLocation] = React.useState<Location.LocationObject | null>(null);
   const [showBusMarkerDemo, setShowBusMarkerDemo] = React.useState(false);
+  const [showRouteFollower, setShowRouteFollower] = React.useState(false);
+  const [showLiveVehicles, setShowLiveVehicles] = React.useState(true);
 
   // UIUC campus coordinates (Main Quad) with appropriate zoom level
   const campusCenter = {
@@ -122,15 +127,35 @@ export const MapScreen = () => {
                   userLocationPriority="high"
                   userLocationUpdateInterval={5000}
                 >
+                  {/* Simple Vehicle Markers (without SVG) */}
+                  <SimpleVehicleMarkers 
+                    visible={showLiveVehicles}
+                  />
                 </MapView>
                 
-                {/* BusMarker Demo Button */}
-                <TouchableOpacity
+                {/* BusMarker Demo Button - Temporarily disabled */}
+                {/* <TouchableOpacity
                   style={styles.demoButton}
                   onPress={() => setShowBusMarkerDemo(true)}
                 >
                   <Text style={styles.demoButtonText}>🚌 Test BusMarker</Text>
-                </TouchableOpacity>
+                </TouchableOpacity> */}
+
+                {/* Route Follower */}
+                <RouteFollower
+                  visible={showRouteFollower}
+                  onVisibilityChange={setShowRouteFollower}
+                />
+
+                {/* Live Vehicles Toggle Button */}
+                {!showRouteFollower && (
+                  <TouchableOpacity
+                    style={[styles.demoButton, { top: 100 }]}
+                    onPress={() => setShowRouteFollower(true)}
+                  >
+                    <Text style={styles.demoButtonText}>🚌 Live Buses</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             );
           };
@@ -165,26 +190,28 @@ export const MapScreen = () => {
     <>
       <MapComponent />
       
-      {/* BusMarker Demo Modal */}
-      <Modal
-        visible={showBusMarkerDemo}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowBusMarkerDemo(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>BusMarker Demo</Text>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setShowBusMarkerDemo(false)}
+            {/* BusMarker Demo Modal - Temporarily disabled */}
+            {/* 
+            <Modal
+              visible={showBusMarkerDemo}
+              animationType="slide"
+              presentationStyle="pageSheet"
+              onRequestClose={() => setShowBusMarkerDemo(false)}
             >
-              <Text style={styles.closeButtonText}>✕</Text>
-            </TouchableOpacity>
-          </View>
-          <BusMarkerDemo />
-        </View>
-      </Modal>
+              <View style={styles.modalContainer}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>BusMarker Demo</Text>
+                  <TouchableOpacity
+                    style={styles.closeButton}
+                    onPress={() => setShowBusMarkerDemo(false)}
+                  >
+                    <Text style={styles.closeButtonText}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+                <BusMarkerDemo />
+              </View>
+            </Modal>
+            */}
     </>
   );
 };

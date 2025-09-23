@@ -11,7 +11,7 @@ import { FileUploadService } from './src/services/fileUpload';
 import { TransitService } from './src/services/transit';
 import { TransitApiService } from './src/services/transitApi';
 import { supabase } from './src/services/supabase';
-import { APP_CONFIG } from './src/constants/env';
+import { APP_CONFIG, ENV } from './src/constants/env';
 import { MapScreen } from './src/components/MapView';
 
 const Tab = createBottomTabNavigator();
@@ -120,34 +120,207 @@ const DashboardScreen = () => {
 
   const handleTestTransit = async () => {
     try {
-      console.log('🚌 ===== TRANSIT TEST STARTED =====');
-      console.log('🚌 Testing transit API proxy...');
+      console.log('🚌 ===== COMPREHENSIVE TRANSIT API TEST STARTED =====');
+      console.log('🚌 Testing all CUMTD API endpoints...');
       console.log('🚌 Current user:', user?.id);
-      console.log('🚌 Supabase client:', supabase);
       
-      // Test departures for a common UIUC stop using the new proxy
-      console.log('🚌 Calling TransitApiService.getDepartures("WLNTUNI")...');
-      const departuresResult = await TransitApiService.getDepartures('WLNTUNI');
+      let totalResults = {
+        departures: 0,
+        vehicles: 0,
+        routes: 0,
+        stops: 0,
+        tripPlans: 0
+      };
+
+      // Test 1: Get all routes and stops from CUMTD
+      console.log('🚌 ===== TEST 1: GETTING ALL ROUTES AND STOPS FROM CUMTD =====');
+      let realRoutes: string[] = [];
+      let realStops: string[] = [];
       
-      console.log('🚌 Departures result:', departuresResult);
-      
-      if (departuresResult.success) {
-        console.log('✅ Departures test successful:', departuresResult.data?.departures?.length || 0, 'departures');
-        console.log('✅ Departures data:', departuresResult.data?.departures);
-        console.log('💾 Cached:', departuresResult.cached || false);
-        console.log('⏱️ Cache age:', departuresResult.cacheAge || 0, 'seconds');
-        Alert.alert('Transit Test', `Found ${departuresResult.data?.departures?.length || 0} departures for WLNTUNI stop${departuresResult.cached ? ' (cached)' : ''}`);
-      } else {
-        console.error('❌ Departures test failed:', departuresResult.error);
-        Alert.alert('Transit Test Failed', departuresResult.error || 'Unknown error');
+      try {
+        // Test routes endpoint
+        const routesResponse = await fetch(`${ENV.SUPABASE_URL}/functions/v1/transit-routes`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${ENV.SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (routesResponse.ok) {
+          const routesData = await routesResponse.json();
+          console.log('✅ Routes API Response:', routesData);
+          totalResults.routes = routesData.routes?.length || 0;
+          console.log(`✅ Found ${totalResults.routes} routes`);
+          
+          // Extract real route IDs for testing - prioritize main routes over alternates
+          if (routesData.routes && Array.isArray(routesData.routes)) {
+            // Filter for main routes (not alternates) and take first 10
+            const mainRoutes = routesData.routes.filter((route: any) => 
+              !route.route_id.includes('ALT') && 
+              !route.route_id.includes('EVENING') && 
+              !route.route_id.includes('SATURDAY') && 
+              !route.route_id.includes('SUNDAY') &&
+              !route.route_id.includes('LATE NIGHT')
+            );
+            realRoutes = mainRoutes.slice(0, 10).map((route: any) => route.route_id);
+            console.log('🚌 Main route IDs for testing:', realRoutes);
+          }
+        } else {
+          console.log('⚠️ Routes API not available, using fallback route names...');
+          realRoutes = ['GREEN', 'BLUE', 'RED', 'YELLOW', 'ORANGE'];
+        }
+
+        // Test stops endpoint
+        const stopsResponse = await fetch(`${ENV.SUPABASE_URL}/functions/v1/transit-stops`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${ENV.SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (stopsResponse.ok) {
+          const stopsData = await stopsResponse.json();
+          console.log('✅ Stops API Response:', stopsData);
+          totalResults.stops = stopsData.stops?.length || 0;
+          console.log(`✅ Found ${totalResults.stops} stops`);
+          
+          // Extract real stop IDs for testing - prioritize stops with departures
+          if (stopsData.stops && Array.isArray(stopsData.stops)) {
+            // Filter for stops that are likely to have active service
+            const activeStops = stopsData.stops.filter((stop: any) => 
+              stop.stop_name && 
+              (stop.stop_name.includes('University') || 
+               stop.stop_name.includes('First') || 
+               stop.stop_name.includes('Green') ||
+               stop.stop_name.includes('Wright') ||
+               stop.stop_name.includes('Lincoln'))
+            );
+            realStops = activeStops.slice(0, 10).map((stop: any) => stop.stop_id);
+            console.log('🚌 Active stop IDs for testing:', realStops);
+          }
+        } else {
+          console.log('⚠️ Stops API not available, using fallback stop IDs...');
+          realStops = ['WLNTUNI', 'ILLINI', 'UNION', 'CAMPUS', 'MAIN'];
+        }
+      } catch (error) {
+        console.log('⚠️ Routes/Stops API test failed:', error);
+        // Use fallback data - main routes only
+        realRoutes = ['GREEN', 'BLUE', 'RED', 'YELLOW', 'ORANGE', 'ILLINI', 'SILVER', 'TEAL', 'PINK', 'BROWN'];
+        realStops = ['WLNTUNI', 'UNIGWN', 'UNILNCLN', 'UNIMCLGH', 'UNINEIL', 'UNI2ND', 'UNI4TH', 'UNI6TH', 'UNICENT', 'UNICTGRV'];
       }
+
+      // Test 2: Get vehicles for real CUMTD routes
+      console.log('🚌 ===== TEST 2: GETTING VEHICLES FOR REAL CUMTD ROUTES =====');
+      // Use real route IDs from CUMTD API or fallback to common route names
+      const testRoutes = realRoutes.length > 0 ? realRoutes : ['GREEN', 'BLUE', 'RED', 'YELLOW', 'ORANGE', 'ILLINI', 'SILVER', 'TEAL', 'PINK', 'BROWN'];
       
-      console.log('🚌 ===== TRANSIT TEST COMPLETED =====');
+      for (const routeId of testRoutes) {
+        try {
+          console.log(`🚌 Testing route ${routeId}...`);
+          const vehiclesResult = await TransitApiService.getVehiclesByRoute(routeId);
+          
+          if (vehiclesResult.success && vehiclesResult.data?.vehicles) {
+            const vehicleCount = vehiclesResult.data.vehicles.length;
+            totalResults.vehicles += vehicleCount;
+            console.log(`✅ Route ${routeId}: ${vehicleCount} vehicles`);
+            if (vehicleCount > 0) {
+              console.log(`🚌 Route ${routeId} vehicles:`, vehiclesResult.data.vehicles.slice(0, 3)); // Show first 3
+            }
+          } else {
+            console.log(`⚠️ Route ${routeId}: No vehicles or error`);
+          }
+        } catch (error) {
+          console.log(`❌ Route ${routeId} test failed:`, error);
+        }
+      }
+
+      // Test 3: Get departures for real CUMTD stops
+      console.log('🚌 ===== TEST 3: GETTING DEPARTURES FOR REAL CUMTD STOPS =====');
+      // Use real stop IDs from CUMTD API or fallback to known working stops
+      const testStops = realStops.length > 0 ? realStops : ['WLNTUNI', 'UNIGWN', 'UNILNCLN', 'UNIMCLGH', 'UNINEIL', 'UNI2ND', 'UNI4TH', 'UNI6TH', 'UNICENT', 'UNICTGRV'];
+      
+      for (const stopId of testStops) {
+        try {
+          console.log(`🚌 Testing stop ${stopId}...`);
+          const departuresResult = await TransitApiService.getDepartures(stopId);
+          
+          if (departuresResult.success && departuresResult.data?.departures) {
+            const departureCount = departuresResult.data.departures.length;
+            totalResults.departures += departureCount;
+            console.log(`✅ Stop ${stopId}: ${departureCount} departures`);
+            if (departureCount > 0) {
+              console.log(`🚌 Stop ${stopId} departures:`, departuresResult.data.departures.slice(0, 3)); // Show first 3
+            }
+          } else {
+            console.log(`⚠️ Stop ${stopId}: No departures or error`);
+          }
+        } catch (error) {
+          console.log(`❌ Stop ${stopId} test failed:`, error);
+        }
+      }
+
+      // Test 4: Test trip planning with real stops
+      console.log('🚌 ===== TEST 4: TESTING TRIP PLANNING =====');
+      // Use real stop IDs for trip planning - test stops that are likely connected
+      const testTrips = realStops.length >= 4 ? [
+        { origin: realStops[0], destination: realStops[1] },
+        { origin: realStops[2], destination: realStops[3] },
+        { origin: realStops[0], destination: realStops[2] }
+      ] : [
+        { origin: 'WLNTUNI', destination: 'UNIGWN' },
+        { origin: 'UNILNCLN', destination: 'UNIMCLGH' },
+        { origin: 'UNINEIL', destination: 'UNI2ND' },
+        { origin: '1STGRG', destination: '1STARY' },
+        { origin: '1STDAN', destination: '1STGTY' }
+      ];
+
+      for (const trip of testTrips) {
+        try {
+          console.log(`🚌 Testing trip: ${trip.origin} → ${trip.destination}`);
+          const tripResult = await TransitApiService.planTrip(trip.origin, trip.destination);
+          
+          if (tripResult.success && tripResult.data?.trips) {
+            const tripCount = tripResult.data.trips.length;
+            totalResults.tripPlans += tripCount;
+            console.log(`✅ Trip ${trip.origin} → ${trip.destination}: ${tripCount} trip options`);
+            if (tripCount > 0) {
+              console.log(`🚌 Trip details:`, tripResult.data.trips[0]); // Show first trip
+            }
+          } else {
+            console.log(`⚠️ Trip ${trip.origin} → ${trip.destination}: No trips or error`);
+          }
+        } catch (error) {
+          console.log(`❌ Trip ${trip.origin} → ${trip.destination} test failed:`, error);
+        }
+      }
+
+      // Summary
+      console.log('🚌 ===== COMPREHENSIVE TEST SUMMARY =====');
+      console.log(`📊 Total Results:`);
+      console.log(`   🚌 Vehicles: ${totalResults.vehicles}`);
+      console.log(`   🚏 Departures: ${totalResults.departures}`);
+      console.log(`   🛣️ Routes: ${totalResults.routes}`);
+      console.log(`   🚏 Stops: ${totalResults.stops}`);
+      console.log(`   🗺️ Trip Plans: ${totalResults.tripPlans}`);
+      
+      const summaryMessage = `API Test Results:
+🚌 Vehicles: ${totalResults.vehicles}
+🚏 Departures: ${totalResults.departures}
+🛣️ Routes: ${totalResults.routes}
+🗺️ Trip Plans: ${totalResults.tripPlans}
+
+Check console for detailed logs.`;
+      
+      Alert.alert('Comprehensive Transit API Test', summaryMessage);
+      console.log('🚌 ===== COMPREHENSIVE TRANSIT API TEST COMPLETED =====');
+      
     } catch (error) {
-      console.error('❌ ===== TRANSIT TEST ERROR =====');
-      console.error('❌ Transit test error:', error);
+      console.error('❌ ===== COMPREHENSIVE TRANSIT TEST ERROR =====');
+      console.error('❌ Comprehensive test error:', error);
       console.error('❌ Error details:', JSON.stringify(error, null, 2));
-      Alert.alert('Error', `Transit test failed: ${error}`);
+      Alert.alert('Error', `Comprehensive transit test failed: ${error}`);
     }
   };
 
@@ -475,7 +648,7 @@ const DashboardScreen = () => {
             }}
           >
             <Text style={{ color: 'white', fontSize: 16, fontWeight: '600' }}>
-              Test Transit API
+              Test All Transit APIs
             </Text>
           </TouchableOpacity>
           

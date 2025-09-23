@@ -188,6 +188,21 @@ export class TransitApiService {
   }
 
   /**
+   * Get vehicles for a specific route (alias for getVehicles)
+   * @param routeId - The route ID to get vehicles for
+   * @returns Promise with vehicles data
+   */
+  static async getVehiclesByRoute(routeId: string): Promise<{
+    success: boolean;
+    data?: any;
+    error?: string;
+    cached?: boolean;
+    cacheAge?: number;
+  }> {
+    return this.getVehicles(routeId);
+  }
+
+  /**
    * Get all available routes
    * @returns Promise with routes data
    */

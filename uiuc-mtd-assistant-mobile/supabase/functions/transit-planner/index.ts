@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
-const CUMTD_API_BASE = "https://developer.cumtd.com/api/v2.2/json"
+const CUMTD_API_BASE = "https://developer.mtd.org/api/v2.2/json"
 const CUMTD_API_KEY = Deno.env.get("CUMTD_API_KEY")
 
 // Cache configuration
@@ -101,20 +101,24 @@ serve(async (req) => {
         }
       )
     }
+    console.log('🔑 CUMTD API key length:', CUMTD_API_KEY.length)
+    console.log('🔑 CUMTD API key preview:', CUMTD_API_KEY.substring(0, 8) + '...')
 
     let requestData: TripPlanRequest
 
     if (req.method === 'POST') {
       requestData = await req.json()
     } else {
-      // Handle GET request with query parameters
-      const url = new URL(req.url)
-      requestData = {
-        origin: url.searchParams.get('origin') || '',
-        destination: url.searchParams.get('destination') || '',
-        arrive_by: url.searchParams.get('arrive_by') || undefined,
-        depart_at: url.searchParams.get('depart_at') || undefined
-      }
+    // Handle GET request with query parameters
+    const url = new URL(req.url)
+    console.log('🔍 Full request URL:', req.url)
+    console.log('🔍 URL search params:', Object.fromEntries(url.searchParams.entries()))
+    requestData = {
+      origin: url.searchParams.get('origin') || '',
+      destination: url.searchParams.get('destination') || '',
+      arrive_by: url.searchParams.get('arrive_by') || undefined,
+      depart_at: url.searchParams.get('depart_at') || undefined
+    }
     }
 
     // Validate required parameters
@@ -133,6 +137,7 @@ serve(async (req) => {
     }
 
     console.log(`🗺️ Planning trip from ${requestData.origin} to ${requestData.destination}`)
+    console.log('🔍 Request data:', JSON.stringify(requestData, null, 2))
 
     // Check rate limiting
     const rateLimitKey = `planner:${requestData.origin}:${requestData.destination}`
@@ -184,16 +189,26 @@ serve(async (req) => {
 
     console.log('🔄 Cache miss, fetching from CUMTD API...')
 
-    // Build CUMTD API URL
-    let cumtdUrl = `${CUMTD_API_BASE}/getplannedtripsbystops?key=${CUMTD_API_KEY}&origin=${encodeURIComponent(requestData.origin)}&destination=${encodeURIComponent(requestData.destination)}`
+    // Build CUMTD API URL using CORRECT parameter names from official documentation
+    let cumtdUrl = `${CUMTD_API_BASE}/getplannedtripsbystops?key=${CUMTD_API_KEY}&origin_stop_id=${encodeURIComponent(requestData.origin)}&destination_stop_id=${encodeURIComponent(requestData.destination)}`
     
+    // Add optional parameters according to official documentation
     if (requestData.arrive_by) {
-      cumtdUrl += `&arrive_by=${encodeURIComponent(requestData.arrive_by)}`
+      // Convert arrive_by to date, time, and arrive_depart format
+      const arriveDate = new Date(requestData.arrive_by)
+      const date = arriveDate.toISOString().split('T')[0] // YYYY-MM-DD
+      const time = arriveDate.toTimeString().split(' ')[0].substring(0, 5) // HH:MM
+      cumtdUrl += `&date=${date}&time=${time}&arrive_depart=arrive`
     } else if (requestData.depart_at) {
-      cumtdUrl += `&depart_at=${encodeURIComponent(requestData.depart_at)}`
+      // Convert depart_at to date, time, and arrive_depart format
+      const departDate = new Date(requestData.depart_at)
+      const date = departDate.toISOString().split('T')[0] // YYYY-MM-DD
+      const time = departDate.toTimeString().split(' ')[0].substring(0, 5) // HH:MM
+      cumtdUrl += `&date=${date}&time=${time}&arrive_depart=depart`
     }
 
     console.log('🔗 CUMTD API URL:', cumtdUrl.replace(CUMTD_API_KEY, '***'))
+    console.log('🔍 Full CUMTD API URL (with key):', cumtdUrl)
 
     // Call CUMTD API
     console.log('📡 Making request to CUMTD API...')
@@ -215,6 +230,7 @@ serve(async (req) => {
       console.error(`❌ CUMTD API error: ${response.status} ${response.statusText}`)
       const errorText = await response.text()
       console.error('❌ Error response:', errorText)
+      console.error('❌ Request URL that failed:', cumtdUrl.replace(CUMTD_API_KEY, '***KEY***'))
       
       return new Response(
         JSON.stringify({ 
