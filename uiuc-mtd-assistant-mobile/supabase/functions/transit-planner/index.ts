@@ -69,6 +69,176 @@ interface NormalizedTrip {
   }>
 }
 
+// Fallback trip planning using working APIs
+async function attemptFallbackTripPlanning(requestData: TripPlanRequest): Promise<Response> {
+  try {
+    console.log('🚌 ===== FALLBACK TRIP PLANNING STARTED =====')
+    console.log(`🗺️ Planning fallback trip from ${requestData.origin} to ${requestData.destination}`)
+    
+    // Step 1: Get departures from origin stop
+    console.log('📡 Step 1: Getting departures from origin stop...')
+    const originDeparturesUrl = `${CUMTD_API_BASE}/getdeparturesbystop?key=${CUMTD_API_KEY}&stop_id=${encodeURIComponent(requestData.origin)}`
+    const originResponse = await fetch(originDeparturesUrl)
+    
+    if (!originResponse.ok) {
+      console.error('❌ Failed to get origin departures')
+      return new Response(
+        JSON.stringify({ 
+          error: 'Fallback trip planning failed: Could not get origin departures',
+          fallback: true
+        }),
+        { 
+          status: 500,
+          headers: { 
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      )
+    }
+    
+    const originData = await originResponse.json()
+    console.log(`✅ Found ${originData.departures?.length || 0} departures from origin`)
+    
+    // Step 2: Get departures from destination stop
+    console.log('📡 Step 2: Getting departures from destination stop...')
+    const destDeparturesUrl = `${CUMTD_API_BASE}/getdeparturesbystop?key=${CUMTD_API_KEY}&stop_id=${encodeURIComponent(requestData.destination)}`
+    const destResponse = await fetch(destDeparturesUrl)
+    
+    if (!destResponse.ok) {
+      console.error('❌ Failed to get destination departures')
+      return new Response(
+        JSON.stringify({ 
+          error: 'Fallback trip planning failed: Could not get destination departures',
+          fallback: true
+        }),
+        { 
+          status: 500,
+          headers: { 
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      )
+    }
+    
+    const destData = await destResponse.json()
+    console.log(`✅ Found ${destData.departures?.length || 0} departures from destination`)
+    
+    // Step 3: Find common routes between origin and destination
+    console.log('📡 Step 3: Finding common routes...')
+    const originRoutes = new Set(originData.departures?.map((d: any) => d.route_id).filter(Boolean) || [])
+    const destRoutes = new Set(destData.departures?.map((d: any) => d.route_id).filter(Boolean) || [])
+    const commonRoutes = [...originRoutes].filter(route => destRoutes.has(route))
+    
+    console.log(`✅ Found ${commonRoutes.length} common routes:`, commonRoutes)
+    
+    // Step 4: Build fallback trip options
+    const fallbackTrips: NormalizedTrip[] = []
+    
+    if (commonRoutes.length > 0) {
+      // Direct route available
+      const routeId = commonRoutes[0]
+      const nextDeparture = originData.departures?.find((d: any) => d.route_id === routeId)
+      
+      if (nextDeparture) {
+        const trip: NormalizedTrip = {
+          tripId: `fallback-${routeId}-${Date.now()}`,
+          startTime: nextDeparture.expected_mins ? 
+            new Date(Date.now() + nextDeparture.expected_mins * 60000).toISOString() : 
+            new Date().toISOString(),
+          endTime: new Date(Date.now() + (nextDeparture.expected_mins || 10) * 60000 + 15 * 60000).toISOString(), // Add 15 min travel time
+          durationMinutes: (nextDeparture.expected_mins || 10) + 15,
+          legs: [{
+            startTime: nextDeparture.expected_mins ? 
+              new Date(Date.now() + nextDeparture.expected_mins * 60000).toISOString() : 
+              new Date().toISOString(),
+            endTime: new Date(Date.now() + (nextDeparture.expected_mins || 10) * 60000 + 15 * 60000).toISOString(),
+            mode: 'bus',
+            routeId: routeId,
+            routeName: `Route ${routeId}`,
+            from: {
+              name: requestData.origin,
+              latitude: 40.1096, // Default UIUC coordinates
+              longitude: -88.2272
+            },
+            to: {
+              name: requestData.destination,
+              latitude: 40.1096,
+              longitude: -88.2272
+            }
+          }]
+        }
+        fallbackTrips.push(trip)
+      }
+    } else {
+      // No direct route, suggest walking or multiple transfers
+      const trip: NormalizedTrip = {
+        tripId: `fallback-walk-${Date.now()}`,
+        startTime: new Date().toISOString(),
+        endTime: new Date(Date.now() + 30 * 60000).toISOString(), // 30 min walk
+        durationMinutes: 30,
+        legs: [{
+          startTime: new Date().toISOString(),
+          endTime: new Date(Date.now() + 30 * 60000).toISOString(),
+          mode: 'walk',
+          from: {
+            name: requestData.origin,
+            latitude: 40.1096,
+            longitude: -88.2272
+          },
+          to: {
+            name: requestData.destination,
+            latitude: 40.1096,
+            longitude: -88.2272
+          }
+        }]
+      }
+      fallbackTrips.push(trip)
+    }
+    
+    console.log(`✅ Generated ${fallbackTrips.length} fallback trip options`)
+    console.log('🚌 ===== FALLBACK TRIP PLANNING COMPLETED =====')
+    
+    const responseData = { 
+      success: true,
+      trips: fallbackTrips,
+      timestamp: new Date().toISOString(),
+      cached: false,
+      fallback: true,
+      message: 'Trip planned using fallback method (CUMTD trip planning API unavailable)'
+    }
+    
+    return new Response(
+      JSON.stringify(responseData),
+      { 
+        headers: { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'public, max-age=30' // Shorter cache for fallback
+        }
+      }
+    )
+    
+  } catch (error) {
+    console.error('💥 Fallback trip planning failed:', error)
+    return new Response(
+      JSON.stringify({ 
+        error: 'Fallback trip planning failed',
+        details: error.message,
+        fallback: true
+      }),
+      { 
+        status: 500,
+        headers: { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    )
+  }
+}
+
 serve(async (req) => {
   // Handle CORS
   if (req.method === 'OPTIONS') {
@@ -190,6 +360,7 @@ serve(async (req) => {
     console.log('🔄 Cache miss, fetching from CUMTD API...')
 
     // Build CUMTD API URL using CORRECT parameter names from official documentation
+    // First try stop-based trip planning
     let cumtdUrl = `${CUMTD_API_BASE}/getplannedtripsbystops?key=${CUMTD_API_KEY}&origin_stop_id=${encodeURIComponent(requestData.origin)}&destination_stop_id=${encodeURIComponent(requestData.destination)}`
     
     // Add optional parameters according to official documentation
@@ -227,24 +398,14 @@ serve(async (req) => {
     console.log('📡 CUMTD API response status:', response.status)
     
     if (!response.ok) {
-      console.error(`❌ CUMTD API error: ${response.status} ${response.statusText}`)
+      console.error(`❌ CUMTD Trip Planning API error: ${response.status} ${response.statusText}`)
       const errorText = await response.text()
       console.error('❌ Error response:', errorText)
       console.error('❌ Request URL that failed:', cumtdUrl.replace(CUMTD_API_KEY, '***KEY***'))
       
-      return new Response(
-        JSON.stringify({ 
-          error: `CUMTD API error: ${response.status}`,
-          details: errorText
-        }),
-        { 
-          status: response.status,
-          headers: { 
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
-          }
-        }
-      )
+      // If trip planning fails, try fallback approach
+      console.log('🔄 Trip planning failed, attempting fallback approach...')
+      return await attemptFallbackTripPlanning(requestData)
     }
 
     const data: TripPlanResponse = await response.json()
