@@ -1,7 +1,38 @@
 import { createClient } from '@supabase/supabase-js';
 import { ENV } from '../constants/env';
 
-export const supabase = createClient(ENV.SUPABASE_URL, ENV.SUPABASE_ANON_KEY);
+// Log Supabase configuration
+console.log('🔧 ===== SUPABASE CONFIGURATION =====');
+console.log('🌐 Supabase URL:', ENV.SUPABASE_URL);
+console.log('🔑 Supabase Key (first 20 chars):', ENV.SUPABASE_ANON_KEY?.substring(0, 20) + '...');
+console.log('📊 Key length:', ENV.SUPABASE_ANON_KEY?.length);
+console.log('✅ URL valid:', ENV.SUPABASE_URL?.startsWith('https://'));
+console.log('✅ Key valid:', ENV.SUPABASE_ANON_KEY?.length > 50);
+
+export const supabase = createClient(ENV.SUPABASE_URL, ENV.SUPABASE_ANON_KEY, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true
+  },
+  storage: {
+    // Add storage-specific configuration
+    maxFileSize: 50 * 1024 * 1024, // 50MB
+  }
+});
+
+// Test Supabase connection
+console.log('🧪 Testing Supabase connection...');
+supabase.from('_test_connection').select('*').limit(1).then(
+  (result) => {
+    console.log('✅ Supabase connection test result:', result);
+  },
+  (error) => {
+    console.log('⚠️ Supabase connection test error (expected):', error.message);
+  }
+);
+
+console.log('🔧 ===== SUPABASE CONFIGURATION COMPLETE =====');
 
 // Database types based on our schema
 export interface Profile {

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StatusBar } from 'expo-status-bar';
-import { Text, View, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { Text, View, TextInput, TouchableOpacity, Alert, Platform } from 'react-native';
 import { AuthService } from './src/services/auth';
 import { DeepLinkService } from './src/services/deepLinks';
 import { NotificationService } from './src/services/notifications';
@@ -10,12 +10,15 @@ import { CalendarService } from './src/services/calendar';
 import { FileUploadService } from './src/services/fileUpload';
 import { TransitService } from './src/services/transit';
 import { supabase } from './src/services/supabase';
+import { APP_CONFIG } from './src/constants/env';
+import { MapScreen } from './src/components/MapView';
 
 const Tab = createBottomTabNavigator();
 
 // Placeholder screen components
 const DashboardScreen = () => {
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [isSignedIn, setIsSignedIn] = useState(false);
@@ -24,20 +27,82 @@ const DashboardScreen = () => {
   const [loadingCalendar, setLoadingCalendar] = useState(false);
   const [uploadingICS, setUploadingICS] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<string>('');
+  const [isSignUp, setIsSignUp] = useState(false);
 
-  const handleSignIn = async () => {
-    if (!email) {
-      Alert.alert('Error', 'Please enter an email address');
+  const handleSignUp = async () => {
+    if (!email || !password) {
+      Alert.alert('Error', 'Please enter both email and password');
+      return;
+    }
+
+    if (password.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters long');
       return;
     }
 
     setLoading(true);
     try {
-      await AuthService.signInWithEmail(email);
-      await AuthService.signInWithEmail(email);
-      Alert.alert('Success', 'Check your email for the magic link!');
+      const result = await AuthService.signUp(email, password);
+      if (result.user && !result.user.email_confirmed_at) {
+        Alert.alert(
+          'Account Created!', 
+          'Please check your email and click the confirmation link to activate your account. Then you can sign in.',
+          [
+            { text: 'OK', style: 'default' }
+          ]
+        );
+        // Switch to sign in mode after successful sign up
+        setIsSignUp(false);
+        setPassword(''); // Clear password field
+      } else {
+        Alert.alert('Success', 'Account created and signed in!');
+      }
     } catch (error: any) {
-      Alert.alert('Error', error?.message || 'An error occurred');
+      Alert.alert('Error', error?.message || 'An error occurred during sign up');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignIn = async () => {
+    if (!email || !password) {
+      Alert.alert('Error', 'Please enter both email and password');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await AuthService.signInWithEmail(email, password);
+      Alert.alert('Success', 'Signed in successfully!');
+    } catch (error: any) {
+      if (error?.message?.includes('Invalid login credentials')) {
+        Alert.alert(
+          'Sign In Failed', 
+          'Invalid email or password. If you just created an account, please check your email and click the confirmation link first.',
+          [
+            { text: 'OK', style: 'default' }
+          ]
+        );
+      } else {
+        Alert.alert('Error', error?.message || 'An error occurred during sign in');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendConfirmation = async () => {
+    if (!email) {
+      Alert.alert('Error', 'Please enter your email address');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await AuthService.resendConfirmation(email);
+      Alert.alert('Success', 'Confirmation email sent! Please check your inbox.');
+    } catch (error: any) {
+      Alert.alert('Error', error?.message || 'Failed to resend confirmation email');
     } finally {
       setLoading(false);
     }
@@ -85,17 +150,20 @@ const DashboardScreen = () => {
 
   const checkAuthState = async () => {
     try {
+      console.log('🔍 Checking initial auth state...');
       const currentUser = await AuthService.getCurrentUser();
       if (currentUser) {
+        console.log('✅ Initial auth check: User found:', currentUser.email);
         setUser(currentUser);
         setIsSignedIn(true);
         setEmail(currentUser.email || '');
       } else {
+        console.log('❌ Initial auth check: No user found');
         setIsSignedIn(false);
         setUser(null);
       }
     } catch (error) {
-      console.log('No user signed in');
+      console.log('❌ Initial auth check failed:', error);
       setIsSignedIn(false);
       setUser(null);
     }
@@ -154,42 +222,69 @@ const DashboardScreen = () => {
     try {
       console.log('🚀 ===== ICS UPLOAD PROCESS STARTED =====');
       console.log('📅 Current time:', new Date().toISOString());
+      console.log('🌐 Platform:', Platform.OS);
+      console.log('📱 Device info:', JSON.stringify({
+        platform: Platform.OS,
+        version: Platform.Version,
+        isPad: Platform.OS === 'ios' ? (Platform as any).isPad : false,
+        isTV: Platform.OS === 'ios' ? (Platform as any).isTV : false
+      }));
+      console.log('👤 User authenticated:', !!user);
+      console.log('👤 User email:', user?.email);
+      console.log('🔑 User ID:', user?.id);
       
-      // Upload the ICS file
-      setUploadStatus('Step 1: Uploading file...');
-      console.log('📁 Step 1: Starting file upload...');
+      // Upload and parse the ICS file
+      setUploadStatus('Step 1: Processing ICS file...');
+      console.log('📁 Step 1: Starting file processing...');
       const uploadResult = await FileUploadService.uploadICSFile();
       
       if (!uploadResult.success) {
-        console.error('❌ Upload failed:', uploadResult.error);
-        setUploadStatus(`❌ Upload failed: ${uploadResult.error}`);
-        Alert.alert('Upload Failed', uploadResult.error || 'Failed to upload file');
+        console.error('❌ Processing failed:', uploadResult.error);
+        setUploadStatus(`❌ Processing failed: ${uploadResult.error}`);
+        Alert.alert('Processing Failed', uploadResult.error || 'Failed to process ICS file');
         return;
       }
-      console.log('✅ Step 1 completed: File uploaded successfully');
-      console.log('📂 Uploaded file path:', uploadResult.filePath);
-      setUploadStatus('✅ File uploaded successfully');
-
-      // Parse the ICS file
-      setUploadStatus('Step 2: Parsing ICS file...');
-      console.log('🔍 Step 2: Starting ICS parsing...');
-      const parseResult = await FileUploadService.parseICSEvents(uploadResult.filePath!);
       
-      if (!parseResult.success) {
-        console.error('❌ Parse failed:', parseResult.error);
-        setUploadStatus(`❌ Parse failed: ${parseResult.error}`);
-        Alert.alert('Parse Failed', parseResult.error || 'Failed to parse ICS file');
-        return;
+      let events;
+      
+      // Check if events were parsed directly (new approach)
+      if (uploadResult.events) {
+        console.log('✅ Step 1 completed: File processed and parsed directly');
+        console.log('📊 Parsed events count:', uploadResult.events.length);
+        console.log('📋 Parsed events:', uploadResult.events);
+        setUploadStatus(`✅ Parsed ${uploadResult.events.length} events directly`);
+        
+        // Skip to database save
+        events = uploadResult.events;
+      } else {
+        // Fallback to old approach (parse from storage)
+        console.log('✅ Step 1 completed: File uploaded successfully');
+        console.log('📂 Uploaded file path:', uploadResult.filePath);
+        setUploadStatus('✅ File uploaded successfully');
+
+        // Parse the ICS file
+        setUploadStatus('Step 2: Parsing ICS file...');
+        console.log('🔍 Step 2: Starting ICS parsing...');
+        const parseResult = await FileUploadService.parseICSEvents(uploadResult.filePath!);
+        
+        if (!parseResult.success) {
+          console.error('❌ Parse failed:', parseResult.error);
+          setUploadStatus(`❌ Parse failed: ${parseResult.error}`);
+          Alert.alert('Parse Failed', parseResult.error || 'Failed to parse ICS file');
+          return;
+        }
+        console.log('✅ Step 2 completed: ICS parsed successfully');
+        console.log('📊 Parsed events count:', parseResult.events?.length);
+        console.log('📋 Parsed events:', parseResult.events);
+        setUploadStatus(`✅ Parsed ${parseResult.events?.length} events`);
+        
+        events = parseResult.events;
       }
-      console.log('✅ Step 2 completed: ICS parsed successfully');
-      console.log('📊 Parsed events count:', parseResult.events?.length);
-      console.log('📋 Parsed events:', parseResult.events);
-      setUploadStatus(`✅ Parsed ${parseResult.events?.length} events`);
 
       // Save events to database
       setUploadStatus('Step 3: Saving to database...');
       console.log('💾 Step 3: Starting database save...');
-      const saveResult = await FileUploadService.saveEventsToDatabase(parseResult.events!);
+      const saveResult = await FileUploadService.saveEventsToDatabase(events!);
       
       if (!saveResult.success) {
         console.error('❌ Save failed:', saveResult.error);
@@ -200,9 +295,9 @@ const DashboardScreen = () => {
       console.log('✅ Step 3 completed: Events saved to database successfully');
 
       console.log('🎉 ===== ICS UPLOAD PROCESS COMPLETED SUCCESSFULLY =====');
-      console.log('📈 Total events imported:', parseResult.events!.length);
-      setUploadStatus(`🎉 Success! Imported ${parseResult.events!.length} events`);
-      Alert.alert('Success', `Successfully imported ${parseResult.events!.length} events from ICS file!`);
+      console.log('📈 Total events imported:', events!.length);
+      setUploadStatus(`🎉 Success! Imported ${events!.length} events`);
+      Alert.alert('Success', `Successfully imported ${events!.length} events from ICS file!`);
       
       // Refresh events if calendar is connected
       if (calendarConnected) {
@@ -210,7 +305,7 @@ const DashboardScreen = () => {
         setUploadStatus('Refreshing calendar...');
         await handleLoadEvents();
         console.log('✅ Calendar events refreshed');
-        setUploadStatus(`🎉 Success! Imported ${parseResult.events!.length} events and refreshed calendar`);
+        setUploadStatus(`🎉 Success! Imported ${events!.length} events and refreshed calendar`);
       }
       
     } catch (error) {
@@ -226,7 +321,28 @@ const DashboardScreen = () => {
   };
 
   useEffect(() => {
+    // Listen for auth state changes FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth state changed:', event, session?.user?.email);
+      if (session?.user) {
+        console.log('✅ Setting user as signed in:', session.user.email);
+        setUser(session.user);
+        setIsSignedIn(true);
+        setEmail(session.user.email || '');
+      } else {
+        console.log('❌ Setting user as signed out');
+        setUser(null);
+        setIsSignedIn(false);
+        setEmail('');
+      }
+    });
+
+    // Then check initial auth state
     checkAuthState();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -234,6 +350,9 @@ const DashboardScreen = () => {
       checkCalendarConnection();
     }
   }, [isSignedIn]);
+
+  // Debug logging
+  console.log('🎯 Dashboard render - isSignedIn:', isSignedIn, 'user:', user?.email);
 
   return (
     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
@@ -375,6 +494,10 @@ const DashboardScreen = () => {
       ) : (
         // Not signed in state
         <View style={{ width: '100%' }}>
+          <Text style={{ fontSize: 20, marginBottom: 20, textAlign: 'center', fontWeight: '600' }}>
+            {isSignUp ? 'Create Account' : 'Sign In'}
+          </Text>
+          
           <TextInput
             placeholder="Enter your email"
             value={email}
@@ -385,14 +508,31 @@ const DashboardScreen = () => {
               borderRadius: 8,
               padding: 15,
               width: '100%',
-              marginBottom: 20,
+              marginBottom: 15,
               fontSize: 16
             }}
             keyboardType="email-address"
             autoCapitalize="none"
           />
+          
+          <TextInput
+            placeholder="Enter your password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            style={{
+              borderWidth: 1,
+              borderColor: '#ccc',
+              borderRadius: 8,
+              padding: 15,
+              width: '100%',
+              marginBottom: 20,
+              fontSize: 16
+            }}
+          />
+          
           <TouchableOpacity
-            onPress={handleSignIn}
+            onPress={isSignUp ? handleSignUp : handleSignIn}
             disabled={loading}
             style={{
               backgroundColor: '#007AFF',
@@ -404,20 +544,43 @@ const DashboardScreen = () => {
             }}
           >
             <Text style={{ color: 'white', fontSize: 16, fontWeight: '600' }}>
-              {loading ? 'Sending...' : 'Sign In with Email'}
+              {loading ? (isSignUp ? 'Creating Account...' : 'Signing In...') : (isSignUp ? 'Create Account' : 'Sign In')}
             </Text>
           </TouchableOpacity>
+          
+          <TouchableOpacity
+            onPress={() => setIsSignUp(!isSignUp)}
+            style={{
+              padding: 10,
+              alignItems: 'center'
+            }}
+          >
+            <Text style={{ color: '#007AFF', fontSize: 16 }}>
+              {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
+            </Text>
+          </TouchableOpacity>
+          
+          {!isSignUp && (
+            <TouchableOpacity
+              onPress={handleResendConfirmation}
+              disabled={loading}
+              style={{
+                padding: 10,
+                alignItems: 'center',
+                marginTop: 10
+              }}
+            >
+              <Text style={{ color: '#FF9500', fontSize: 14 }}>
+                Didn't receive confirmation email? Resend
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
     </View>
   );
 };
 
-const MapScreen = () => (
-  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-    <Text>Map</Text>
-  </View>
-);
 
 const RoutesScreen = () => (
   <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>

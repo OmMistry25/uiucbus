@@ -35,8 +35,8 @@ export class DeepLinkService {
     if (url.startsWith('uiucmtd://')) {
       // Handle our app's deep links
       this.handleAppDeepLink(url);
-    } else if (url.includes('supabase.co')) {
-      // Handle Supabase auth redirects
+    } else if (url.includes('supabase.co') || url.includes('/--/auth/callback')) {
+      // Handle Supabase auth redirects (including Expo deep links)
       this.handleSupabaseRedirect(url);
     }
   }
@@ -57,23 +57,48 @@ export class DeepLinkService {
   // Handle Supabase authentication redirects
   private static async handleSupabaseRedirect(url: string) {
     try {
-      // Extract the hash fragment from the URL
-      const hash = url.split('#')[1];
-      if (!hash) return;
+      console.log('Processing Supabase auth redirect:', url);
+      
+      // Parse the URL to extract the hash fragment with auth tokens
+      const urlObj = new URL(url);
+      const hash = urlObj.hash.substring(1); // Remove the # symbol
+      
+      if (!hash) {
+        console.log('No hash fragment found in URL');
+        return;
+      }
 
       // Parse the hash parameters
       const params = new URLSearchParams(hash);
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
       const error = params.get('error');
       const errorDescription = params.get('error_description');
 
       if (error) {
         console.error('Supabase auth error:', error, errorDescription);
-        // TODO: Show error message to user
         return;
       }
 
-      // Handle successful authentication
-      console.log('Supabase auth redirect handled');
+      if (accessToken && refreshToken) {
+        // Set the session manually
+        const { data, error: sessionError } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+
+        if (sessionError) {
+          console.error('Error setting session:', sessionError);
+          return;
+        }
+
+        if (data.session) {
+          console.log('✅ Authentication successful! User:', data.session.user?.email);
+          // The auth state change will be handled by the auth listener in App.tsx
+        }
+      } else {
+        console.log('No access token or refresh token found in URL');
+      }
       
     } catch (error) {
       console.error('Error handling Supabase redirect:', error);

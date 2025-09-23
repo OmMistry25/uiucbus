@@ -2,23 +2,43 @@ import { supabase } from './supabase';
 import { Profile } from './supabase';
 
 export class AuthService {
-  // Send magic link for email sign-in
-  static async signInWithEmail(email: string) {
+  // Sign up with email and password
+  static async signUp(email: string, password: string) {
     try {
-      console.log('Attempting to send magic link to:', email);
-      const { data, error } = await supabase.auth.signInWithOtp({
+      console.log('Attempting to sign up with email:', email);
+      const { data, error } = await supabase.auth.signUp({
         email,
-        options: {
-          emailRedirectTo: 'exp://10.6.112.238:8081/--/auth/callback',
-        },
+        password,
       });
       
       if (error) {
-        console.error('Supabase auth error:', error);
+        console.error('Supabase sign up error:', error);
         throw error;
       }
       
-      console.log('Magic link sent successfully');
+      console.log('Sign up successful');
+      return data;
+    } catch (error) {
+      console.error('Sign up error:', error);
+      throw error;
+    }
+  }
+
+  // Sign in with email and password
+  static async signInWithEmail(email: string, password: string) {
+    try {
+      console.log('Attempting to sign in with email:', email);
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      if (error) {
+        console.error('Supabase sign in error:', error);
+        throw error;
+      }
+      
+      console.log('Sign in successful');
       return data;
     } catch (error) {
       console.error('Sign in error:', error);
@@ -61,6 +81,28 @@ export class AuthService {
     
     if (error) throw error;
     return data;
+  }
+
+  // Resend confirmation email
+  static async resendConfirmation(email: string) {
+    try {
+      console.log('Resending confirmation email to:', email);
+      const { data, error } = await supabase.auth.resend({
+        type: 'signup',
+        email: email,
+      });
+      
+      if (error) {
+        console.error('Supabase resend error:', error);
+        throw error;
+      }
+      
+      console.log('Confirmation email resent successfully');
+      return data;
+    } catch (error) {
+      console.error('Resend confirmation error:', error);
+      throw error;
+    }
   }
 
   // Listen to auth state changes
