@@ -787,8 +787,7 @@ export default function App() {
               iconName = '🏠';
             } else if (route.name === 'Map') {
               iconName = '🗺️';
-            } else if (route.name === 'Routes') {
-              iconName = '🚌';
+            // Routes tab removed for cleaner interface
             } else if (route.name === 'Settings') {
               iconName = '⚙️';
             }
@@ -808,7 +807,7 @@ export default function App() {
       >
         <Tab.Screen name="Dashboard" component={DashboardScreen} />
         <Tab.Screen name="Map" component={MapScreen} />
-        <Tab.Screen name="Routes" component={RoutesScreen} />
+        {/* Routes tab removed for cleaner interface */}
         <Tab.Screen name="Settings" component={SettingsScreen} />
       </Tab.Navigator>
       <StatusBar style="auto" />

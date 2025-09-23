@@ -15,7 +15,7 @@ export class UserSettingsService {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        console.log('❌ No authenticated user for settings');
+        console.log('No authenticated user for settings');
         return null;
       }
 
@@ -28,17 +28,17 @@ export class UserSettingsService {
       if (error) {
         if (error.code === 'PGRST116') {
           // No settings found, return default
-          console.log('📝 No user settings found, returning defaults');
+          console.log('No user settings found, returning defaults');
           return null;
         }
-        console.error('❌ Error fetching user settings:', error);
+        console.error('Error fetching user settings:', error);
         return null;
       }
 
-      console.log('✅ User settings fetched successfully');
+      console.log('User settings fetched successfully');
       return data;
     } catch (error) {
-      console.error('💥 Error in getUserSettings:', error);
+      console.error('Error in getUserSettings:', error);
       return null;
     }
   }
@@ -50,11 +50,11 @@ export class UserSettingsService {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        console.log('❌ No authenticated user for setting home point');
+        console.log('No authenticated user for setting home point');
         return false;
       }
 
-      console.log('🏠 Setting home point:', homePoint);
+      console.log('Setting home point:', homePoint);
 
       // Convert to PostGIS geometry format
       const homePointGeometry = {
@@ -75,14 +75,14 @@ export class UserSettingsService {
         });
 
       if (error) {
-        console.error('❌ Error setting home point:', error);
+        console.error('Error setting home point:', error);
         return false;
       }
 
-      console.log('✅ Home point set successfully');
+      console.log('Home point set successfully');
       return true;
     } catch (error) {
-      console.error('💥 Error in setHomePoint:', error);
+      console.error('Error in setHomePoint:', error);
       return false;
     }
   }
@@ -129,14 +129,14 @@ export class UserSettingsService {
       // Fallback to home location
       const homePoint = await this.getHomePoint();
       if (homePoint) {
-        console.log('🏠 Using home location as trip origin:', homePoint);
+        console.log('Using home location as trip origin:', homePoint);
         return homePoint;
       }
 
-      console.log('❌ No origin point available (no current location or home set)');
+      console.log('No origin point available (no current location or home set)');
       return null;
     } catch (error) {
-      console.error('💥 Error in getTripOriginPoint:', error);
+      console.error('Error in getTripOriginPoint:', error);
       return null;
     }
   }
@@ -152,7 +152,7 @@ export class UserSettingsService {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        console.log('❌ No authenticated user for updating preferences');
+        console.log('No authenticated user for updating preferences');
         return false;
       }
 
@@ -164,14 +164,14 @@ export class UserSettingsService {
         });
 
       if (error) {
-        console.error('❌ Error updating notification preferences:', error);
+        console.error('Error updating notification preferences:', error);
         return false;
       }
 
-      console.log('✅ Notification preferences updated successfully');
+      console.log('Notification preferences updated successfully');
       return true;
     } catch (error) {
-      console.error('💥 Error in updateNotificationPreferences:', error);
+      console.error('Error in updateNotificationPreferences:', error);
       return false;
     }
   }

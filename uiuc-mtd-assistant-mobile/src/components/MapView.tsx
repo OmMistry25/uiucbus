@@ -16,7 +16,7 @@ export const MapScreen = () => {
   const [locationPermission, setLocationPermission] = React.useState<Location.LocationPermissionResponse | null>(null);
   const [userLocation, setUserLocation] = React.useState<Location.LocationObject | null>(null);
   const [showBusMarkerDemo, setShowBusMarkerDemo] = React.useState(false);
-  const [showRouteFollower, setShowRouteFollower] = React.useState(false);
+  // RouteFollower state removed for cleaner interface
   const [showLiveVehicles, setShowLiveVehicles] = React.useState(true);
   
   // Home picker state
@@ -26,8 +26,6 @@ export const MapScreen = () => {
   
   // Notification preferences moved to Settings screen
   
-  // NextBusCard state
-  const [showNextBusCard, setShowNextBusCard] = React.useState(true);
 
   // UIUC campus coordinates (Main Quad) with appropriate zoom level
   const campusCenter = {
@@ -56,14 +54,14 @@ export const MapScreen = () => {
   React.useEffect(() => {
     const requestLocationPermission = async () => {
       try {
-        console.log('🗺️ Requesting location permissions...');
+        console.log('Requesting location permissions...');
         
         // Request foreground location permission
         const { status } = await Location.requestForegroundPermissionsAsync();
-        console.log('🗺️ Location permission status:', status);
+        console.log('Location permission status:', status);
         
         if (status !== 'granted') {
-          console.warn('🗺️ Location permission denied');
+          console.warn('Location permission denied');
           Alert.alert(
             'Location Permission Required',
             'This app needs location access to show your position on the map and help you find nearby bus stops.',
@@ -72,20 +70,20 @@ export const MapScreen = () => {
           return;
         }
 
-        console.log('🗺️ Location permission granted, getting current location...');
+        console.log('Location permission granted, getting current location...');
         
         // Get current location
         const location = await Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.Balanced,
         });
         
-        console.log('🗺️ User location:', location);
+        console.log('User location:', location);
         setUserLocation(location);
         setLocationPermission({ status: 'granted' } as Location.LocationPermissionResponse);
-        console.log('🗺️ Location permission state updated to granted');
+        console.log('Location permission state updated to granted');
         
       } catch (error) {
-        console.error('🗺️ Error getting location:', error);
+        console.error('Error getting location:', error);
         Alert.alert(
           'Location Error',
           'Unable to get your current location. The map will show the UIUC campus area.',
@@ -102,7 +100,7 @@ export const MapScreen = () => {
     return (
       <View style={styles.webPlaceholder}>
         <Text style={styles.webTitle}>
-          🗺️ Map View
+          Map View
         </Text>
         <Text style={styles.webSubtitle}>
           Interactive map will be available on mobile devices
@@ -125,7 +123,7 @@ export const MapScreen = () => {
           const Marker = Maps.Marker;
           
           return () => {
-            console.log('🗺️ Rendering MapView with:', {
+            console.log('Rendering MapView with:', {
               hasUserLocation: !!userLocation,
               locationPermission: locationPermission?.status,
               showsUserLocation: locationPermission?.status === 'granted',
@@ -160,7 +158,7 @@ export const MapScreen = () => {
                     const { latitude, longitude } = event.nativeEvent.coordinate;
                     setSelectedLocation({ latitude, longitude });
                     setShowHomePicker(true);
-                    console.log('🗺️ Map pressed at:', latitude, longitude);
+                    console.log('Map pressed at:', latitude, longitude);
                   }}
                 >
                   {/* Simple Vehicle Markers (without SVG) */}
@@ -200,25 +198,6 @@ export const MapScreen = () => {
                 {/* Route Follower */}
                 {/* Route Follower Component - removed for cleaner interface */}
                 
-                {/* Set Home Button */}
-                <TouchableOpacity
-                  style={[styles.demoButton, { top: 160 }]}
-                  onPress={() => setShowHomePicker(true)}
-                >
-                  <Text style={styles.demoButtonText}>🏠 Set Home</Text>
-                </TouchableOpacity>
-                
-                {/* Settings Button - moved to Settings tab */}
-                
-                {/* NextBusCard Toggle Button */}
-                <TouchableOpacity
-                  style={[styles.demoButton, { top: 160 }]}
-                  onPress={() => setShowNextBusCard(!showNextBusCard)}
-                >
-                  <Text style={styles.demoButtonText}>
-                    {showNextBusCard ? '🚌 Hide Next Bus' : '🚌 Show Next Bus'}
-                  </Text>
-                </TouchableOpacity>
               </View>
             );
           };
@@ -293,19 +272,17 @@ export const MapScreen = () => {
       
       {/* Notification Preferences moved to Settings screen */}
       
-      {/* NextBusCard */}
-      {showNextBusCard && (
-        <NextBusCard
-          currentLocation={userLocation ? {
-            latitude: userLocation.coords.latitude,
-            longitude: userLocation.coords.longitude
-          } : undefined}
-          calendarEvents={[]} // TODO: Load from calendar service
-          onTripPlan={(tripPlan) => {
-            console.log('🚌 Trip plan received:', tripPlan);
-          }}
-        />
-      )}
+             {/* NextBusCard - Always visible */}
+             <NextBusCard
+               currentLocation={userLocation ? {
+                 latitude: userLocation.coords.latitude,
+                 longitude: userLocation.coords.longitude
+               } : undefined}
+               calendarEvents={[]} // TODO: Load from calendar service
+               onTripPlan={(tripPlan) => {
+                 console.log('🚌 Trip plan received:', tripPlan);
+               }}
+             />
     </>
   );
 };
@@ -366,25 +343,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#F44336',
     marginTop: 10,
-  },
-  demoButton: {
-    position: 'absolute',
-    top: 50,
-    right: 20,
-    backgroundColor: '#FF6B35',
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  demoButtonText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: 'bold',
   },
   modalContainer: {
     flex: 1,

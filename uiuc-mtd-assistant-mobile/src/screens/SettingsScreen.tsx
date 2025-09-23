@@ -9,6 +9,7 @@ import {
   Alert
 } from 'react-native';
 import { UserSettingsService, HomePoint } from '../services/userSettings';
+import { CronService } from '../services/cronService';
 
 export const SettingsScreen: React.FC = () => {
   const [homePoint, setHomePoint] = useState<HomePoint | null>(null);
@@ -141,16 +142,13 @@ export const SettingsScreen: React.FC = () => {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <View style={styles.header}>
-        <Text style={styles.title}>⚙️ Settings</Text>
-      </View>
 
       {/* Home Location Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>🏠 Home Location</Text>
         {homePoint ? (
           <View style={styles.homeInfo}>
-            <Text style={styles.homeLabel}>🏠 {homePoint.label}</Text>
+            <Text style={styles.homeLabel}> {homePoint.label}</Text>
             <Text style={styles.homeCoordinates}>
               {homePoint.latitude.toFixed(6)}, {homePoint.longitude.toFixed(6)}
             </Text>
@@ -187,7 +185,7 @@ export const SettingsScreen: React.FC = () => {
           <>
             {/* Lead Time */}
             <View style={styles.settingItem}>
-              <Text style={styles.settingLabel}>⏰ Lead Time</Text>
+              <Text style={styles.settingLabel}>Lead Time</Text>
               <Text style={styles.settingDescription}>
                 How many minutes before your bus departure should we notify you?
               </Text>
@@ -218,7 +216,7 @@ export const SettingsScreen: React.FC = () => {
 
             {/* Quiet Hours */}
             <View style={styles.settingItem}>
-              <Text style={styles.settingLabel}>🌙 Quiet Hours</Text>
+              <Text style={styles.settingLabel}>Quiet Hours</Text>
               <Text style={styles.settingDescription}>
                 During these hours, you won't receive notifications (except for urgent alerts)
               </Text>
@@ -300,10 +298,33 @@ export const SettingsScreen: React.FC = () => {
           <Text style={styles.infoLabel}>Last Updated</Text>
           <Text style={styles.infoValue}>{new Date().toLocaleDateString()}</Text>
         </View>
-      </View>
-    </ScrollView>
-  );
-};
+        </View>
+
+        {/* Development/Testing Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🔧 Development</Text>
+          
+          <TouchableOpacity
+            style={styles.button}
+            onPress={async () => {
+              try {
+                const result = await CronService.triggerScheduleNotify();
+                Alert.alert(
+                  'Cron Job Result',
+                  `Processed: ${result.processed} users\nNotifications: ${result.notifications}\nTime: ${new Date(result.timestamp).toLocaleString()}`,
+                  [{ text: 'OK' }]
+                );
+              } catch (error) {
+                Alert.alert('Error', `Failed to trigger cron job: ${error.message}`);
+              }
+            }}
+          >
+            <Text style={styles.buttonText}>Test Cron Job</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    );
+  };
 
 const styles = StyleSheet.create({
   container: {
@@ -405,25 +426,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   timeButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#4caf50',
     justifyContent: 'center',
     alignItems: 'center',
   },
   timeButtonText: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#fff',
   },
   timeDisplay: {
     alignItems: 'center',
-    marginHorizontal: 20,
-    minWidth: 80,
+    marginHorizontal: 15,
+    minWidth: 70,
   },
   timeValue: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#333',
   },
@@ -435,12 +456,13 @@ const styles = StyleSheet.create({
   quietHoursContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 20,
+    paddingHorizontal: 10,
   },
   quietHoursItem: {
     flex: 1,
     alignItems: 'center',
-    minWidth: 120,
+    marginHorizontal: 10,
+    minWidth: 140,
   },
   quietHoursLabel: {
     fontSize: 14,
