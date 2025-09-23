@@ -72,16 +72,16 @@ interface NormalizedTrip {
 // Fallback trip planning using working APIs
 async function attemptFallbackTripPlanning(requestData: TripPlanRequest): Promise<Response> {
   try {
-    console.log('🚌 ===== FALLBACK TRIP PLANNING STARTED =====')
-    console.log(`🗺️ Planning fallback trip from ${requestData.origin} to ${requestData.destination}`)
+    console.log(' ===== FALLBACK TRIP PLANNING STARTED =====')
+    console.log(`Planning fallback trip from ${requestData.origin} to ${requestData.destination}`)
     
     // Step 1: Get departures from origin stop
-    console.log('📡 Step 1: Getting departures from origin stop...')
+    console.log('Step 1: Getting departures from origin stop...')
     const originDeparturesUrl = `${CUMTD_API_BASE}/getdeparturesbystop?key=${CUMTD_API_KEY}&stop_id=${encodeURIComponent(requestData.origin)}`
     const originResponse = await fetch(originDeparturesUrl)
     
     if (!originResponse.ok) {
-      console.error('❌ Failed to get origin departures')
+      console.error('Failed to get origin departures')
       return new Response(
         JSON.stringify({ 
           error: 'Fallback trip planning failed: Could not get origin departures',
@@ -98,15 +98,15 @@ async function attemptFallbackTripPlanning(requestData: TripPlanRequest): Promis
     }
     
     const originData = await originResponse.json()
-    console.log(`✅ Found ${originData.departures?.length || 0} departures from origin`)
+    console.log(`Found ${originData.departures?.length || 0} departures from origin`)
     
     // Step 2: Get departures from destination stop
-    console.log('📡 Step 2: Getting departures from destination stop...')
+    console.log('Step 2: Getting departures from destination stop...')
     const destDeparturesUrl = `${CUMTD_API_BASE}/getdeparturesbystop?key=${CUMTD_API_KEY}&stop_id=${encodeURIComponent(requestData.destination)}`
     const destResponse = await fetch(destDeparturesUrl)
     
     if (!destResponse.ok) {
-      console.error('❌ Failed to get destination departures')
+      console.error('Failed to get destination departures')
       return new Response(
         JSON.stringify({ 
           error: 'Fallback trip planning failed: Could not get destination departures',
@@ -126,12 +126,12 @@ async function attemptFallbackTripPlanning(requestData: TripPlanRequest): Promis
     console.log(`✅ Found ${destData.departures?.length || 0} departures from destination`)
     
     // Step 3: Find common routes between origin and destination
-    console.log('📡 Step 3: Finding common routes...')
+    console.log('Step 3: Finding common routes...')
     const originRoutes = new Set(originData.departures?.map((d: any) => d.route_id).filter(Boolean) || [])
     const destRoutes = new Set(destData.departures?.map((d: any) => d.route_id).filter(Boolean) || [])
     const commonRoutes = [...originRoutes].filter(route => destRoutes.has(route))
     
-    console.log(`✅ Found ${commonRoutes.length} common routes:`, commonRoutes)
+    console.log(`Found ${commonRoutes.length} common routes:`, commonRoutes)
     
     // Step 4: Build fallback trip options
     const fallbackTrips: NormalizedTrip[] = []
@@ -197,8 +197,8 @@ async function attemptFallbackTripPlanning(requestData: TripPlanRequest): Promis
       fallbackTrips.push(trip)
     }
     
-    console.log(`✅ Generated ${fallbackTrips.length} fallback trip options`)
-    console.log('🚌 ===== FALLBACK TRIP PLANNING COMPLETED =====')
+    console.log(`Generated ${fallbackTrips.length} fallback trip options`)
+    console.log('===== FALLBACK TRIP PLANNING COMPLETED =====')
     
     const responseData = { 
       success: true,
@@ -252,14 +252,14 @@ serve(async (req) => {
   }
 
   try {
-    console.log('🗺️ ===== TRANSIT PLANNER PROXY STARTED =====')
-    console.log('⏰ Request time:', new Date().toISOString())
-    console.log('🌐 Request URL:', req.url)
-    console.log('📡 Request method:', req.method)
+    console.log('===== TRANSIT PLANNER PROXY STARTED =====')
+    console.log('Request time:', new Date().toISOString())
+    console.log('Request URL:', req.url)
+    console.log('Request method:', req.method)
 
     // Validate API key
     if (!CUMTD_API_KEY) {
-      console.error("❌ CUMTD_API_KEY not configured")
+      console.error("CUMTD_API_KEY not configured")
       return new Response(
         JSON.stringify({ error: "CUMTD API key not configured" }),
         { 
@@ -271,8 +271,8 @@ serve(async (req) => {
         }
       )
     }
-    console.log('🔑 CUMTD API key length:', CUMTD_API_KEY.length)
-    console.log('🔑 CUMTD API key preview:', CUMTD_API_KEY.substring(0, 8) + '...')
+    console.log('CUMTD API key length:', CUMTD_API_KEY.length)
+    console.log('CUMTD API key preview:', CUMTD_API_KEY.substring(0, 8) + '...')
 
     let requestData: TripPlanRequest
 
@@ -281,8 +281,8 @@ serve(async (req) => {
     } else {
     // Handle GET request with query parameters
     const url = new URL(req.url)
-    console.log('🔍 Full request URL:', req.url)
-    console.log('🔍 URL search params:', Object.fromEntries(url.searchParams.entries()))
+    console.log('Full request URL:', req.url)
+    console.log('URL search params:', Object.fromEntries(url.searchParams.entries()))
     requestData = {
       origin: url.searchParams.get('origin') || '',
       destination: url.searchParams.get('destination') || '',
@@ -293,7 +293,7 @@ serve(async (req) => {
 
     // Validate required parameters
     if (!requestData.origin || !requestData.destination) {
-      console.error('❌ Missing required parameters')
+      console.error('Missing required parameters')
       return new Response(
         JSON.stringify({ error: "origin and destination parameters are required" }),
         { 
@@ -306,8 +306,8 @@ serve(async (req) => {
       )
     }
 
-    console.log(`🗺️ Planning trip from ${requestData.origin} to ${requestData.destination}`)
-    console.log('🔍 Request data:', JSON.stringify(requestData, null, 2))
+    console.log(`Planning trip from ${requestData.origin} to ${requestData.destination}`)
+    console.log('Request data:', JSON.stringify(requestData, null, 2))
 
     // Check rate limiting
     const rateLimitKey = `planner:${requestData.origin}:${requestData.destination}`
@@ -318,7 +318,7 @@ serve(async (req) => {
     const validRequests = requestTimes.filter(time => now - time < RATE_LIMIT_WINDOW)
     
     if (validRequests.length >= MAX_REQUESTS_PER_WINDOW) {
-      console.warn('⚠️ Rate limit exceeded for route pair:', rateLimitKey)
+      console.warn('Rate limit exceeded for route pair:', rateLimitKey)
       return new Response(
         JSON.stringify({ 
           error: 'Rate limit exceeded. Maximum 1 request per minute per route pair.',
@@ -339,8 +339,8 @@ serve(async (req) => {
     const cached = cache.get(cacheKey)
     
     if (cached && (now - cached.timestamp) < CACHE_TTL) {
-      console.log('✅ Cache hit for route pair:', rateLimitKey)
-      console.log('📊 Cached data age:', Math.round((now - cached.timestamp) / 1000), 'seconds')
+      console.log('Cache hit for route pair:', rateLimitKey)
+      console.log('Cached data age:', Math.round((now - cached.timestamp) / 1000), 'seconds')
       return new Response(
         JSON.stringify({ 
           ...cached.data, 
@@ -357,7 +357,7 @@ serve(async (req) => {
       )
     }
 
-    console.log('🔄 Cache miss, fetching from CUMTD API...')
+    console.log('Cache miss, fetching from CUMTD API...')
 
     // Build CUMTD API URL using CORRECT parameter names from official documentation
     // First try stop-based trip planning
@@ -394,22 +394,22 @@ serve(async (req) => {
     })
 
     const requestDuration = Date.now() - startTime
-    console.log('⏱️ CUMTD API request duration:', requestDuration, 'ms')
-    console.log('📡 CUMTD API response status:', response.status)
+    console.log('CUMTD API request duration:', requestDuration, 'ms')
+    console.log('CUMTD API response status:', response.status)
     
     if (!response.ok) {
-      console.error(`❌ CUMTD Trip Planning API error: ${response.status} ${response.statusText}`)
+      console.error(`CUMTD Trip Planning API error: ${response.status} ${response.statusText}`)
       const errorText = await response.text()
-      console.error('❌ Error response:', errorText)
-      console.error('❌ Request URL that failed:', cumtdUrl.replace(CUMTD_API_KEY, '***KEY***'))
+      console.error('Error response:', errorText)
+      console.error('Request URL that failed:', cumtdUrl.replace(CUMTD_API_KEY, '***KEY***'))
       
       // If trip planning fails, try fallback approach
-      console.log('🔄 Trip planning failed, attempting fallback approach...')
+      console.log('Trip planning failed, attempting fallback approach...')
       return await attemptFallbackTripPlanning(requestData)
     }
 
     const data: TripPlanResponse = await response.json()
-    console.log(`✅ Retrieved ${data.trips?.length || 0} trip options`)
+    console.log(`Retrieved ${data.trips?.length || 0} trip options`)
 
     // Normalize the response
     const normalizedTrips: NormalizedTrip[] = (data.trips || []).map(trip => ({
@@ -454,8 +454,8 @@ serve(async (req) => {
       timestamp: now
     })
 
-    console.log('💾 Response cached with TTL:', CACHE_TTL / 1000, 'seconds')
-    console.log('🗺️ ===== TRANSIT PLANNER PROXY COMPLETED =====')
+    console.log('Response cached with TTL:', CACHE_TTL / 1000, 'seconds')
+    console.log('===== TRANSIT PLANNER PROXY COMPLETED =====')
 
     return new Response(
       JSON.stringify(responseData),
@@ -469,9 +469,9 @@ serve(async (req) => {
     )
 
   } catch (error) {
-    console.error('💥 ===== TRANSIT PLANNER PROXY FAILED =====')
-    console.error('🚨 Unexpected error:', error)
-    console.error('📊 Error details:', JSON.stringify(error, null, 2))
+    console.error('===== TRANSIT PLANNER PROXY FAILED =====')
+    console.error('Unexpected error:', error)
+    console.error('Error details:', JSON.stringify(error, null, 2))
     
     return new Response(
       JSON.stringify({ 

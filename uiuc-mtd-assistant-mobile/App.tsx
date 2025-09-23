@@ -13,6 +13,7 @@ import { TransitApiService } from './src/services/transitApi';
 import { supabase } from './src/services/supabase';
 import { APP_CONFIG, ENV } from './src/constants/env';
 import { MapScreen } from './src/components/MapView';
+import { SettingsScreen } from './src/screens/SettingsScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -764,11 +765,7 @@ const RoutesScreen = () => (
   </View>
 );
 
-const SettingsScreen = () => (
-  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-    <Text>Settings</Text>
-  </View>
-);
+// SettingsScreen is now imported from ./src/screens/SettingsScreen
 
 export default function App() {
   useEffect(() => {
@@ -781,7 +778,34 @@ export default function App() {
 
   return (
     <NavigationContainer>
-      <Tab.Navigator>
+      <Tab.Navigator
+        screenOptions={({ route }) => ({
+          tabBarIcon: ({ focused, color, size }) => {
+            let iconName = '';
+            
+            if (route.name === 'Dashboard') {
+              iconName = '🏠';
+            } else if (route.name === 'Map') {
+              iconName = '🗺️';
+            } else if (route.name === 'Routes') {
+              iconName = '🚌';
+            } else if (route.name === 'Settings') {
+              iconName = '⚙️';
+            }
+            
+            return <Text style={{ fontSize: size, color }}>{iconName}</Text>;
+          },
+          tabBarActiveTintColor: '#4caf50',
+          tabBarInactiveTintColor: 'gray',
+          headerStyle: {
+            backgroundColor: '#4caf50',
+          },
+          headerTintColor: '#fff',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+        })}
+      >
         <Tab.Screen name="Dashboard" component={DashboardScreen} />
         <Tab.Screen name="Map" component={MapScreen} />
         <Tab.Screen name="Routes" component={RoutesScreen} />

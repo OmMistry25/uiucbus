@@ -112,6 +112,36 @@ export class UserSettingsService {
   }
 
   /**
+   * Get trip planning origin point (current location or home as fallback)
+   */
+  static async getTripOriginPoint(currentLocation?: {latitude: number, longitude: number}): Promise<HomePoint | null> {
+    try {
+      // If current location is provided, use it
+      if (currentLocation) {
+        console.log('🗺️ Using current location as trip origin:', currentLocation);
+        return {
+          latitude: currentLocation.latitude,
+          longitude: currentLocation.longitude,
+          label: 'Current Location'
+        };
+      }
+
+      // Fallback to home location
+      const homePoint = await this.getHomePoint();
+      if (homePoint) {
+        console.log('🏠 Using home location as trip origin:', homePoint);
+        return homePoint;
+      }
+
+      console.log('❌ No origin point available (no current location or home set)');
+      return null;
+    } catch (error) {
+      console.error('💥 Error in getTripOriginPoint:', error);
+      return null;
+    }
+  }
+
+  /**
    * Update notification preferences
    */
   static async updateNotificationPreferences(preferences: {

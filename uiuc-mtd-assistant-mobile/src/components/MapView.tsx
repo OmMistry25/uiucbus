@@ -5,9 +5,11 @@ import { APP_CONFIG } from '../constants/env';
 // import { BusMarkerDemo } from './BusMarkerDemo';
 // import { LiveVehicleMarkers } from './LiveVehicleMarkers';
 import { SimpleVehicleMarkers } from './SimpleVehicleMarkers';
-import { RouteFollower } from './RouteFollower';
+// RouteFollower removed for cleaner interface
 import { HomePicker } from './HomePicker';
 import { HomeMarker } from './HomeMarker';
+// NotificationPreferences moved to Settings screen
+import { NextBusCard } from './NextBusCard';
 import { UserSettingsService, HomePoint } from '../services/userSettings';
 
 export const MapScreen = () => {
@@ -21,6 +23,11 @@ export const MapScreen = () => {
   const [showHomePicker, setShowHomePicker] = React.useState(false);
   const [selectedLocation, setSelectedLocation] = React.useState<{latitude: number, longitude: number} | null>(null);
   const [homePoint, setHomePoint] = React.useState<HomePoint | null>(null);
+  
+  // Notification preferences moved to Settings screen
+  
+  // NextBusCard state
+  const [showNextBusCard, setShowNextBusCard] = React.useState(true);
 
   // UIUC campus coordinates (Main Quad) with appropriate zoom level
   const campusCenter = {
@@ -191,20 +198,7 @@ export const MapScreen = () => {
                 </TouchableOpacity> */}
 
                 {/* Route Follower */}
-                <RouteFollower
-                  visible={showRouteFollower}
-                  onVisibilityChange={setShowRouteFollower}
-                />
-
-                {/* Live Vehicles Toggle Button */}
-                {!showRouteFollower && (
-                  <TouchableOpacity
-                    style={[styles.demoButton, { top: 100 }]}
-                    onPress={() => setShowRouteFollower(true)}
-                  >
-                    <Text style={styles.demoButtonText}>🚌 Live Buses</Text>
-                  </TouchableOpacity>
-                )}
+                {/* Route Follower Component - removed for cleaner interface */}
                 
                 {/* Set Home Button */}
                 <TouchableOpacity
@@ -212,6 +206,18 @@ export const MapScreen = () => {
                   onPress={() => setShowHomePicker(true)}
                 >
                   <Text style={styles.demoButtonText}>🏠 Set Home</Text>
+                </TouchableOpacity>
+                
+                {/* Settings Button - moved to Settings tab */}
+                
+                {/* NextBusCard Toggle Button */}
+                <TouchableOpacity
+                  style={[styles.demoButton, { top: 160 }]}
+                  onPress={() => setShowNextBusCard(!showNextBusCard)}
+                >
+                  <Text style={styles.demoButtonText}>
+                    {showNextBusCard ? '🚌 Hide Next Bus' : '🚌 Show Next Bus'}
+                  </Text>
                 </TouchableOpacity>
               </View>
             );
@@ -284,6 +290,22 @@ export const MapScreen = () => {
         }}
         selectedLocation={selectedLocation}
       />
+      
+      {/* Notification Preferences moved to Settings screen */}
+      
+      {/* NextBusCard */}
+      {showNextBusCard && (
+        <NextBusCard
+          currentLocation={userLocation ? {
+            latitude: userLocation.coords.latitude,
+            longitude: userLocation.coords.longitude
+          } : undefined}
+          calendarEvents={[]} // TODO: Load from calendar service
+          onTripPlan={(tripPlan) => {
+            console.log('🚌 Trip plan received:', tripPlan);
+          }}
+        />
+      )}
     </>
   );
 };
