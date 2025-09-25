@@ -83,9 +83,9 @@ export class NotificationService {
         .upsert({
           user_id: user.id,
           device_id: deviceId,
-          expo_push_token: expoPushToken,
+          token: expoPushToken,
           platform: platform,
-          last_seen_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         }, {
           onConflict: 'user_id,device_id'
         });

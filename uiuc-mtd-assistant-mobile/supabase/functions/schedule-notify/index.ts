@@ -407,9 +407,27 @@ async function enqueueNotification(supabase: any, userId: string, tripPlan: Trip
 
     console.log(`✅ Notification enqueued: ${notification.id}`)
 
-    // TODO: Trigger the fanout-push function to actually send the notification
-    // For now, we'll just log that it should be sent
-    console.log(`📱 Should send push notification to ${pushTokens.length} devices`)
+    // Trigger the fanout-push function to actually send the notification
+    try {
+      const fanoutPushUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/fanout-push`
+      const fanoutResponse = await fetch(fanoutPushUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({})
+      })
+
+      if (fanoutResponse.ok) {
+        const fanoutResult = await fanoutResponse.json()
+        console.log(`📱 Fanout-push triggered successfully:`, fanoutResult)
+      } else {
+        console.error(`❌ Fanout-push failed: ${fanoutResponse.status}`)
+      }
+    } catch (error) {
+      console.error(`💥 Error triggering fanout-push:`, error)
+    }
 
   } catch (error) {
     console.error(`💥 Error enqueueing notification:`, error)

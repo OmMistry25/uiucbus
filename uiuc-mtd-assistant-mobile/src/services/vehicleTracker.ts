@@ -36,11 +36,9 @@ class VehicleTrackerService {
     }
 
     if (this.followedRoutes.size === 0) {
-      console.log('🚌 No routes to track, starting with default routes');
-      // Start with some common UIUC routes for testing
-      this.followRoute('1'); // Teal
-      this.followRoute('2'); // Red
-      this.followRoute('5'); // Yellow
+      console.log('🚌 No routes to track, vehicle tracking will be inactive until routes are added');
+      // Don't start with hardcoded routes - let the system determine which routes to track
+      // based on actual trip planning needs
     }
 
     this.isTracking = true;

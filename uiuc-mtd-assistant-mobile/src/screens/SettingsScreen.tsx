@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { UserSettingsService, HomePoint } from '../services/userSettings';
 import { CronService } from '../services/cronService';
+import { NotificationService } from '../services/notifications';
 
 export const SettingsScreen: React.FC = () => {
   const [homePoint, setHomePoint] = useState<HomePoint | null>(null);
@@ -320,6 +321,20 @@ export const SettingsScreen: React.FC = () => {
             }}
           >
             <Text style={styles.buttonText}>Test Cron Job</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.button, { marginTop: 10 }]}
+            onPress={async () => {
+              try {
+                await NotificationService.sendTestNotification();
+                Alert.alert('Test Notification', 'Test notification scheduled! Check your device in 2 seconds.');
+              } catch (error) {
+                Alert.alert('Error', `Failed to send test notification: ${error.message}`);
+              }
+            }}
+          >
+            <Text style={styles.buttonText}>Test Push Notification</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

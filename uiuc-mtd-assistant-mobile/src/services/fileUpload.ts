@@ -381,6 +381,19 @@ export class FileUploadService {
   }
 
   /**
+   * Generate a simple hash for deterministic event IDs
+   */
+  private static simpleHash(str: string): string {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return Math.abs(hash).toString(36);
+  }
+
+  /**
    * Parse ICS content and extract events
    */
   private static parseICSContent(icsContent: string): any[] {
@@ -402,7 +415,7 @@ export class FileUploadService {
         if (line === 'BEGIN:VEVENT') {
           inEvent = true;
           currentEvent = {
-            id: `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            id: '', // Will be set after parsing all event data
           };
           console.log('📅 Started parsing new event');
         } else if (line === 'END:VEVENT' && currentEvent) {
@@ -414,6 +427,11 @@ export class FileUploadService {
               currentEvent.end = endDate.toISOString();
               console.log('⚠️ Event missing end time, setting default 1-hour duration');
             }
+            
+            // Generate deterministic ID based on event content
+            const eventContent = `${currentEvent.title}_${currentEvent.start}_${currentEvent.location || ''}`;
+            const eventHash = FileUploadService.simpleHash(eventContent);
+            currentEvent.id = `event_${eventHash}`;
             
             events.push(currentEvent);
             console.log('✅ Completed parsing event:', currentEvent.title);

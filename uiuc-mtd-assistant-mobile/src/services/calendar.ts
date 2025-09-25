@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { AuthService } from './auth';
 import { Calendar, Event } from './supabase';
+import { GeocodingService } from './geocoding';
 
 export class CalendarService {
   // Connect Google Calendar via OAuth
@@ -121,7 +122,7 @@ export class CalendarService {
     }
   }
 
-  // Save events to database
+  // Save events to database (replaces all existing events)
   static async saveEvents(events: Omit<Event, 'id' | 'user_id'>[]) {
     try {
       const user = await AuthService.getCurrentUser();
@@ -129,17 +130,37 @@ export class CalendarService {
         throw new Error('User must be signed in');
       }
 
+      console.log(`💾 Saving ${events.length} events to database...`);
+
+      // First, delete all existing events for this user to prevent duplicates
+      console.log('🗑️ Clearing existing events...');
+      const { error: deleteError } = await supabase
+        .from('events')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('source', 'ics_import'); // Only delete ICS imported events
+
+      if (deleteError) {
+        console.warn('⚠️ Warning: Could not clear existing events:', deleteError);
+      } else {
+        console.log('✅ Cleared existing ICS events');
+      }
+
+      // Then insert the new events
       const eventsWithUserId = events.map(event => ({
         ...event,
         user_id: user.id,
       }));
 
+      console.log('📝 Inserting new events...');
       const { data, error } = await supabase
         .from('events')
-        .upsert(eventsWithUserId, { onConflict: 'id' })
+        .insert(eventsWithUserId)
         .select();
 
       if (error) throw error;
+      
+      console.log(`✅ Successfully saved ${data?.length || 0} events to database`);
       return data;
     } catch (error) {
       console.error('Error saving events:', error);
@@ -163,10 +184,92 @@ export class CalendarService {
         .limit(limit);
 
       if (error) throw error;
-      return data || [];
+      
+      const events = data || [];
+      
+      // Geocode events that don't have destination_point or need re-geocoding
+      for (const event of events) {
+        if (event.location_text) {
+          const needsGeocoding = !event.destination_point || this.shouldRegeocode(event);
+          
+          if (needsGeocoding) {
+            console.log(`🗺️ Geocoding event location: ${event.location_text}`);
+            const geocodingResult = await GeocodingService.geocodeLocation(event.location_text);
+            
+            if (geocodingResult && geocodingResult.confidence !== 'low') {
+              // Update the event with geocoded coordinates
+              await this.updateEventDestination(event.id, geocodingResult);
+              event.destination_point = {
+                type: 'Point',
+                coordinates: [geocodingResult.longitude, geocodingResult.latitude]
+              };
+              console.log(`✅ Updated event ${event.id} with destination coordinates`);
+            }
+          }
+        }
+      }
+      
+      return events;
     } catch (error) {
       console.error('Error getting user events:', error);
       return [];
+    }
+  }
+
+  // Check if an event should be re-geocoded
+  private static shouldRegeocode(event: Event): boolean {
+    if (!event.destination_point) {
+      return true; // No coordinates, needs geocoding
+    }
+
+    const coords = event.destination_point.coordinates;
+    if (!coords || coords.length !== 2) {
+      return true; // Invalid coordinates, needs geocoding
+    }
+
+    const [longitude, latitude] = coords;
+    
+    // Check if coordinates look like old hardcoded values that need updating
+    // Old BIF coordinates were around 40.102, -88.2272
+    // New BIF coordinates should be around 40.1035872, -88.2306061
+    const isOldBIFCoords = Math.abs(latitude - 40.102) < 0.001 && Math.abs(longitude - (-88.2272)) < 0.001;
+    
+    if (isOldBIFCoords) {
+      console.log(`🔄 Event ${event.id} has old BIF coordinates, needs re-geocoding`);
+      return true;
+    }
+
+    // Check for other old hardcoded campus coordinates
+    const isOldCampusCoords = Math.abs(latitude - 40.1096) < 0.001 && Math.abs(longitude - (-88.2272)) < 0.001;
+    
+    if (isOldCampusCoords) {
+      console.log(`🔄 Event ${event.id} has old campus coordinates, needs re-geocoding`);
+      return true;
+    }
+
+    return false; // Coordinates look good, no need to re-geocode
+  }
+
+  // Update event with destination coordinates
+  private static async updateEventDestination(eventId: string, geocodingResult: any): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('events')
+        .update({
+          destination_point: {
+            type: 'Point',
+            coordinates: [geocodingResult.longitude, geocodingResult.latitude]
+          }
+        })
+        .eq('id', eventId);
+
+      if (error) {
+        console.error('Error updating event destination:', error);
+      } else {
+        console.log(`✅ Updated event ${eventId} with destination coordinates`);
+      }
+    } catch (error) {
+      console.error('Error updating event destination:', error);
     }
   }
 }

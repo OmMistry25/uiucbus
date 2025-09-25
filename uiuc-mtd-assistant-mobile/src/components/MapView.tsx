@@ -11,6 +11,7 @@ import { HomeMarker } from './HomeMarker';
 // NotificationPreferences moved to Settings screen
 import { NextBusCard } from './NextBusCard';
 import { UserSettingsService, HomePoint } from '../services/userSettings';
+import { CalendarService } from '../services/calendar';
 
 export const MapScreen = () => {
   const [locationPermission, setLocationPermission] = React.useState<Location.LocationPermissionResponse | null>(null);
@@ -24,6 +25,9 @@ export const MapScreen = () => {
   const [selectedLocation, setSelectedLocation] = React.useState<{latitude: number, longitude: number} | null>(null);
   const [homePoint, setHomePoint] = React.useState<HomePoint | null>(null);
   
+  // Calendar events state
+  const [calendarEvents, setCalendarEvents] = React.useState<any[]>([]);
+  
   // Notification preferences moved to Settings screen
   
 
@@ -35,19 +39,25 @@ export const MapScreen = () => {
     longitudeDelta: 0.02,
   };
 
-  // Load home point on component mount
+  // Load home point and calendar events on component mount
   React.useEffect(() => {
-    const loadHomePoint = async () => {
+    const loadData = async () => {
       try {
+        // Load home point
         const home = await UserSettingsService.getHomePoint();
         setHomePoint(home);
         console.log('🏠 Home point loaded:', home);
+        
+        // Load calendar events
+        const events = await CalendarService.getUserEvents(20); // Get next 20 events
+        setCalendarEvents(events);
+        console.log('📅 Calendar events loaded:', events.length, 'events');
       } catch (error) {
-        console.error('Error loading home point:', error);
+        console.error('Error loading data:', error);
       }
     };
     
-    loadHomePoint();
+    loadData();
   }, []);
 
   // Request location permissions and get user location
@@ -278,7 +288,7 @@ export const MapScreen = () => {
                  latitude: userLocation.coords.latitude,
                  longitude: userLocation.coords.longitude
                } : undefined}
-               calendarEvents={[]} // TODO: Load from calendar service
+               calendarEvents={calendarEvents}
                onTripPlan={(tripPlan) => {
                  console.log('🚌 Trip plan received:', tripPlan);
                }}

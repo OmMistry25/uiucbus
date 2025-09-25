@@ -78,9 +78,13 @@ export const NextBusCard: React.FC<NextBusCardProps> = ({
 
     const minutes = Math.floor(timeDiff / (1000 * 60));
     const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    const remainingHours = hours % 24;
     const remainingMinutes = minutes % 60;
 
-    if (hours > 0) {
+    if (days > 0) {
+      setCountdown(`${days}d ${remainingHours}h`);
+    } else if (hours > 0) {
       setCountdown(`${hours}h ${remainingMinutes}m`);
     } else {
       setCountdown(`${minutes}m`);

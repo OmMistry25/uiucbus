@@ -137,24 +137,25 @@ export class TransitApiService {
     try {
       console.log('🗺️ Planning trip from:', origin, 'to:', destination);
       
-      const params = new URLSearchParams({
+      const requestBody: any = {
         origin: origin,
         destination: destination,
-      });
+      };
 
       if (options?.arriveBy) {
-        params.append('arrive_by', options.arriveBy);
+        requestBody.arriveBy = options.arriveBy;
       }
       if (options?.departAt) {
-        params.append('depart_at', options.departAt);
+        requestBody.departAt = options.departAt;
       }
 
-      const response = await fetch(`${this.BASE_URL}/transit-planner?${params.toString()}`, {
-        method: 'GET',
+      const response = await fetch(`${this.BASE_URL}/transit-planner`, {
+        method: 'POST',
         headers: {
           'Authorization': `Bearer ${supabase.supabaseKey}`,
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -214,45 +215,31 @@ export class TransitApiService {
     try {
       console.log('🛣️ Fetching all routes');
       
-      // For now, we'll use a hardcoded list of common UIUC routes
-      // In the future, this could be a separate Edge Function
-      const commonRoutes = [
-        { route_id: '1', route_name: '1 Yellow', route_color: '#FFD700' },
-        { route_id: '2', route_name: '2 Red', route_color: '#FF0000' },
-        { route_id: '3', route_name: '3 Green', route_color: '#00FF00' },
-        { route_id: '4', route_name: '4 Blue', route_color: '#0000FF' },
-        { route_id: '5', route_name: '5 Purple', route_color: '#800080' },
-        { route_id: '6', route_name: '6 Orange', route_color: '#FFA500' },
-        { route_id: '7', route_name: '7 Silver', route_color: '#C0C0C0' },
-        { route_id: '8', route_name: '8 Gold', route_color: '#FFD700' },
-        { route_id: '9', route_name: '9 Brown', route_color: '#8B4513' },
-        { route_id: '10', route_name: '10 Teal', route_color: '#008080' },
-        { route_id: '12', route_name: '12 Navy', route_color: '#000080' },
-        { route_id: '13', route_name: '13 Air Bus', route_color: '#87CEEB' },
-        { route_id: '14', route_name: '14 Illini', route_color: '#FF6B6B' },
-        { route_id: '15', route_name: '15 SafeRides', route_color: '#32CD32' },
-        { route_id: '16', route_name: '16 SafeWalks', route_color: '#FF69B4' },
-        { route_id: '17', route_name: '17 SafeRides Late Night', route_color: '#9932CC' },
-        { route_id: '18', route_name: '18 SafeRides Weekend', route_color: '#FF1493' },
-        { route_id: '20', route_name: '20 SafeRides Express', route_color: '#00CED1' },
-        { route_id: '21', route_name: '21 SafeRides Express Late Night', route_color: '#FF4500' },
-        { route_id: '22', route_name: '22 SafeRides Express Weekend', route_color: '#8A2BE2' },
-        { route_id: '23', route_name: '23 SafeRides Express Holiday', route_color: '#DC143C' },
-        { route_id: '24', route_name: '24 SafeRides Express Special', route_color: '#B22222' },
-        { route_id: '25', route_name: '25 SafeRides Express Limited', route_color: '#228B22' },
-        { route_id: '26', route_name: '26 SafeRides Express Limited Late Night', route_color: '#DAA520' },
-        { route_id: '27', route_name: '27 SafeRides Express Limited Weekend', route_color: '#CD853F' },
-        { route_id: '28', route_name: '28 SafeRides Express Limited Holiday', route_color: '#A0522D' },
-        { route_id: '29', route_name: '29 SafeRides Express Limited Special', route_color: '#8B0000' },
-        { route_id: '30', route_name: '30 SafeRides Express Limited Limited', route_color: '#2F4F4F' },
-      ];
+      // Use real CUMTD API via Edge Function
+      const response = await fetch(`${this.BASE_URL}/transit-routes`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${supabase.supabaseKey}`,
+          'Content-Type': 'application/json',
+        },
+      });
 
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('❌ Routes API error:', response.status, errorData);
+        return {
+          success: false,
+          error: errorData.error || `HTTP ${response.status}: ${response.statusText}`
+        };
+      }
+
+      const data = await response.json();
       console.log('✅ Routes fetched successfully');
-      console.log('📊 Routes count:', commonRoutes.length);
+      console.log('📊 Routes count:', data.routes?.length || 0);
       
       return {
         success: true,
-        data: { routes: commonRoutes }
+        data: data
       };
 
     } catch (error) {

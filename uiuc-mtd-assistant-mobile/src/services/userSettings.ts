@@ -112,13 +112,22 @@ export class UserSettingsService {
   }
 
   /**
-   * Get trip planning origin point (current location or home as fallback)
+   * Get trip planning origin point based on event timing
    */
-  static async getTripOriginPoint(currentLocation?: {latitude: number, longitude: number}): Promise<HomePoint | null> {
+  static async getTripOriginPoint(currentLocation?: {latitude: number, longitude: number}, hoursUntilEvent?: number): Promise<HomePoint | null> {
     try {
-      // If current location is provided, use it
+      // If event is more than 24 hours away, use home location
+      if (hoursUntilEvent && hoursUntilEvent > 24) {
+        const homePoint = await this.getHomePoint();
+        if (homePoint) {
+          console.log(`🏠 Event is ${Math.round(hoursUntilEvent)} hours away, using home location as departure point:`, homePoint);
+          return homePoint;
+        }
+      }
+      
+      // If current location is provided and event is soon, use it
       if (currentLocation) {
-        console.log('🗺️ Using current location as trip origin:', currentLocation);
+        console.log(`📍 Event is ${hoursUntilEvent ? Math.round(hoursUntilEvent) : 'unknown'} hours away, using current location as departure point:`, currentLocation);
         return {
           latitude: currentLocation.latitude,
           longitude: currentLocation.longitude,
@@ -129,7 +138,7 @@ export class UserSettingsService {
       // Fallback to home location
       const homePoint = await this.getHomePoint();
       if (homePoint) {
-        console.log('Using home location as trip origin:', homePoint);
+        console.log('Using home location as trip origin (fallback):', homePoint);
         return homePoint;
       }
 
